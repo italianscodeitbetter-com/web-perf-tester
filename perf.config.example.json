@@ -1,0 +1,22 @@
+{
+  "baseURL": "https://app.example.com",
+  "storageState": ".webperf/auth.json",
+  "runs": 5,
+  "headless": true,
+  "outputDir": ".webperf",
+  "budgetMetric": "median",
+  "defaults": {
+    "readyVisible": "[data-test=main-chart]",
+    "readyHidden": "[data-test=loading]",
+    "navigationTimeoutMs": 60000,
+    "readyTimeoutMs": 60000,
+    "readyHiddenTimeoutMs": 15000
+  },
+  "pages": [
+    {
+      "url": "/dashboard/sales",
+      "maxReadyMs": 4000,
+      "readyVisible": "[data-test=sales-chart]"
+    }
+  ]
+}
