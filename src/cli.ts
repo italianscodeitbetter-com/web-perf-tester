@@ -10,7 +10,6 @@ import { runSuite } from "./suite.js";
 function parseArgs(argv: string[]) {
   let configPath = "perf.config.json";
   let outputDir: string | undefined;
-  let debugScreenshots: boolean | undefined;
 
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i]!;
@@ -24,15 +23,13 @@ function parseArgs(argv: string[]) {
       if (!outputDir) {
         throw new Error("--output-dir requires a path");
       }
-    } else if (a === "--debug-screenshots") {
-      debugScreenshots = true;
     } else if (a === "--help" || a === "-h") {
       printHelp();
       process.exit(0);
     }
   }
 
-  return { configPath, outputDir, debugScreenshots };
+  return { configPath, outputDir };
 }
 
 function printHelp() {
@@ -50,7 +47,6 @@ Commands:
 Run options:
   -c, --config <path>     JSON config (default: perf.config.json)
   -o, --output-dir <path> Override output directory from config
-      --debug-screenshots Save extra PNG after navigation, before ready selectors
   -h, --help              Show this message
 
 Exit codes:
@@ -59,8 +55,16 @@ Exit codes:
 `);
 }
 
+const NOOP_RUN_ALIASES = new Set(["perf", "run", "test"]);
+
 async function main() {
-  const argv = process.argv.slice(2);
+  let argv = process.argv.slice(2);
+  if (argv[0] !== "init" && NOOP_RUN_ALIASES.has(argv[0] ?? "")) {
+    console.warn(
+      `Note: "${argv[0]}" is not a subcommand — running the suite. Use: icib-perf-web-tester [options]\n`,
+    );
+    argv = argv.slice(1);
+  }
   if (argv[0] === "init") {
     try {
       const initArgv = parseInitArgs(argv.slice(1));
@@ -80,11 +84,10 @@ async function main() {
     return;
   }
 
-  const { configPath, outputDir, debugScreenshots } = parseArgs(argv);
+  const { configPath, outputDir } = parseArgs(argv);
   const config = loadConfig(configPath);
   const summary = await runSuite(config, {
     outputDirOverride: outputDir,
-    ...(debugScreenshots !== undefined ? { debugScreenshots } : {}),
   });
 
   console.log("\n=== Summary ===");

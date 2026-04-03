@@ -1,8 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
+  createEndpointWatchCollector,
+  createUntrackedRepeatApiCollector,
   getResponseSizeBytes,
   methodsMatch,
+  responseMatchesAnyEndpointRule,
   urlMatchesRule,
+  waitForTrackedEndpointResponses,
 } from "../src/endpoint-watch.js";
 import type { ParsedEndpointWatchRule } from "../src/types.js";
 
@@ -50,6 +54,114 @@ describe("urlMatchesRule", () => {
   it("respects regex flags", () => {
     const r = ruleRegex("^HTTPS://X.COM/API$", "i");
     expect(urlMatchesRule("https://x.com/api", r)).toBe(true);
+  });
+});
+
+describe("responseMatchesAnyEndpointRule", () => {
+  it("returns true when any rule matches URL and method", () => {
+    const rules = [ruleIncludes("/api/a"), ruleIncludes("/api/b")];
+    expect(
+      responseMatchesAnyEndpointRule("https://x.com/api/a", "GET", rules),
+    ).toBe(true);
+    expect(
+      responseMatchesAnyEndpointRule("https://x.com/api/c", "GET", rules),
+    ).toBe(false);
+  });
+
+  it("requires method match", () => {
+    const rules = [ruleIncludes("/api")];
+    expect(
+      responseMatchesAnyEndpointRule("https://x.com/api", "POST", rules),
+    ).toBe(false);
+  });
+});
+
+describe("createUntrackedRepeatApiCollector", () => {
+  function mockResponse(
+    url: string,
+    method: string,
+    resourceType: string,
+  ) {
+    return {
+      url: () => url,
+      request: () => ({
+        method: () => method,
+        resourceType: () => resourceType,
+      }),
+    };
+  }
+
+  it("ignores non-xhr/fetch", () => {
+    const c = createUntrackedRepeatApiCollector([]);
+    c.onResponse(mockResponse("https://x.com/a.js", "GET", "script") as never);
+    c.onResponse(mockResponse("https://x.com/a.js", "GET", "script") as never);
+    expect(c.snapshot()).toEqual([]);
+  });
+
+  it("lists only untracked xhr/fetch with count > 1", () => {
+    const rules = [ruleIncludes("/tracked")];
+    const c = createUntrackedRepeatApiCollector(rules);
+    const u = "https://x.com/untracked";
+    const t = "https://x.com/tracked";
+    for (let i = 0; i < 3; i++) {
+      c.onResponse(mockResponse(u, "GET", "xhr") as never);
+    }
+    c.onResponse(mockResponse(t, "GET", "xhr") as never);
+    c.onResponse(mockResponse(t, "GET", "xhr") as never);
+    const snap = c.snapshot();
+    expect(snap).toEqual([{ method: "GET", url: u, count: 3 }]);
+  });
+
+  it("with no rules, all xhr/fetch are untracked", () => {
+    const c = createUntrackedRepeatApiCollector([]);
+    const u = "https://x.com/z";
+    c.onResponse(mockResponse(u, "GET", "fetch") as never);
+    c.onResponse(mockResponse(u, "GET", "fetch") as never);
+    expect(c.snapshot()).toEqual([{ method: "GET", url: u, count: 2 }]);
+  });
+});
+
+describe("createEndpointWatchCollector getCallCounts", () => {
+  function mockResponse(url: string, method: string) {
+    return {
+      url: () => url,
+      request: () => ({ method: () => method }),
+      headers: () => ({}),
+      body: async () => Buffer.alloc(0),
+    };
+  }
+
+  it("increments callCount synchronously before snapshot body work", () => {
+    const rules: ParsedEndpointWatchRule[] = [
+      { ...ruleIncludes("/api/a"), id: "a" },
+    ];
+    const c = createEndpointWatchCollector(rules);
+    c.onResponse(mockResponse("https://x.com/api/a", "GET") as never);
+    expect(c.getCallCounts()).toEqual([1]);
+  });
+});
+
+describe("waitForTrackedEndpointResponses", () => {
+  it("resolves when waited rules have callCount >= 1", async () => {
+    const rules: ParsedEndpointWatchRule[] = [
+      { ...ruleIncludes("/a"), id: "a", waitForResponse: true },
+      { ...ruleIncludes("/b"), id: "b" },
+    ];
+    let counts = [0, 0];
+    const p = waitForTrackedEndpointResponses(() => counts, rules, 2000, 10);
+    setTimeout(() => {
+      counts = [1, 0];
+    }, 30);
+    await expect(p).resolves.toBeUndefined();
+  });
+
+  it("throws on timeout when rule never matches", async () => {
+    const rules: ParsedEndpointWatchRule[] = [
+      { ...ruleIncludes("/z"), id: "z", waitForResponse: true },
+    ];
+    await expect(
+      waitForTrackedEndpointResponses(() => [0], rules, 80, 20),
+    ).rejects.toThrow(/timeout 80ms/);
   });
 });
 

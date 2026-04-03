@@ -108,6 +108,7 @@ if (localStorage.getItem('measureRunKey') === 'measure-run-ok') {
       navigationTimeoutMs: 30_000,
       readyTimeoutMs: 30_000,
       readyHiddenTimeoutMs: 5000,
+      waitForEndpointsTimeoutMs: 30_000,
       traceDir,
       screenshotDir,
       filePrefix: "ls",

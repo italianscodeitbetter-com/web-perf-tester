@@ -6,6 +6,7 @@ import {
   compileEndpointWatchRules,
   loadConfig,
   mergeEndpointWatch,
+  mergePageOptions,
 } from "../src/config.js";
 import type { PerfDefaults, PerfPageConfig } from "../src/types.js";
 
@@ -43,6 +44,43 @@ describe("loadConfig endpointWatch", () => {
     });
     const c = loadConfig(p);
     expect(c.defaults?.endpointWatch?.[0]?.urlIncludes).toBe("/api");
+  });
+
+  it("accepts waitForResponse on a rule", () => {
+    const p = writeConfig("c.json", {
+      baseURL: "https://a.com",
+      pages: [minimalPage],
+      defaults: {
+        endpointWatch: [
+          {
+            id: "x",
+            urlIncludes: "/api",
+            method: "GET",
+            waitForResponse: true,
+          },
+        ],
+      },
+    });
+    const c = loadConfig(p);
+    expect(c.defaults?.endpointWatch?.[0]?.waitForResponse).toBe(true);
+  });
+
+  it("rejects non-boolean waitForResponse", () => {
+    const p = writeConfig("c.json", {
+      baseURL: "https://a.com",
+      pages: [minimalPage],
+      defaults: {
+        endpointWatch: [
+          {
+            id: "x",
+            urlIncludes: "/api",
+            method: "GET",
+            waitForResponse: "yes",
+          },
+        ],
+      },
+    });
+    expect(() => loadConfig(p)).toThrow(/"waitForResponse" must be a boolean/);
   });
 
   it("accepts urlRegex with flags", () => {
@@ -124,31 +162,45 @@ describe("mergeEndpointWatch", () => {
   });
 });
 
-describe("loadConfig debugScreenshots", () => {
-  it("accepts debugScreenshots boolean", () => {
+describe("loadConfig reportUntrackedRepeatApis", () => {
+  it("parses boolean", () => {
     const p = writeConfig("c.json", {
       baseURL: "https://a.com",
-      debugScreenshots: true,
+      reportUntrackedRepeatApis: false,
       pages: [minimalPage],
     });
-    expect(loadConfig(p).debugScreenshots).toBe(true);
+    expect(loadConfig(p).reportUntrackedRepeatApis).toBe(false);
+  });
+});
+
+describe("loadConfig telemetry flags", () => {
+  it("accepts recordTrace, recordScreenshot, recordRequests, fullPageScreenshot", () => {
+    const p = writeConfig("c.json", {
+      baseURL: "https://a.com",
+      recordTrace: true,
+      recordScreenshot: true,
+      recordRequests: true,
+      fullPageScreenshot: true,
+      traceSnapshots: true,
+      pages: [minimalPage],
+    });
+    const c = loadConfig(p);
+    expect(c.recordTrace).toBe(true);
+    expect(c.recordScreenshot).toBe(true);
+    expect(c.recordRequests).toBe(true);
+    expect(c.fullPageScreenshot).toBe(true);
+    expect(c.traceSnapshots).toBe(true);
   });
 
-  it("omits debugScreenshots when not set", () => {
+  it("omits telemetry flags when not set", () => {
     const p = writeConfig("c.json", {
       baseURL: "https://a.com",
       pages: [minimalPage],
     });
-    expect(loadConfig(p).debugScreenshots).toBeUndefined();
-  });
-
-  it("rejects non-boolean debugScreenshots", () => {
-    const p = writeConfig("c.json", {
-      baseURL: "https://a.com",
-      debugScreenshots: "yes",
-      pages: [minimalPage],
-    });
-    expect(() => loadConfig(p)).toThrow(/"debugScreenshots" must be a boolean/);
+    const c = loadConfig(p);
+    expect(c.recordTrace).toBeUndefined();
+    expect(c.recordScreenshot).toBeUndefined();
+    expect(c.recordRequests).toBeUndefined();
   });
 });
 
@@ -198,5 +250,29 @@ describe("compileEndpointWatchRules", () => {
       { id: "a", urlRegex: "foo", method: "GET" },
     ]);
     expect(r[0]!.compiledRegex?.test("foo")).toBe(true);
+  });
+});
+
+describe("mergePageOptions waitForEndpointsTimeoutMs", () => {
+  it("defaults to 30000", () => {
+    const m = mergePageOptions(undefined, minimalPage);
+    expect(m.waitForEndpointsTimeoutMs).toBe(30_000);
+  });
+
+  it("merges from defaults and page", () => {
+    const m = mergePageOptions(
+      { waitForEndpointsTimeoutMs: 5000 },
+      { ...minimalPage, waitForEndpointsTimeoutMs: 12_000 },
+    );
+    expect(m.waitForEndpointsTimeoutMs).toBe(12_000);
+  });
+
+  it("throws when negative", () => {
+    expect(() =>
+      mergePageOptions(
+        { waitForEndpointsTimeoutMs: -1 },
+        minimalPage,
+      ),
+    ).toThrow(/waitForEndpointsTimeoutMs must be >= 0/);
   });
 });

@@ -23,6 +23,18 @@ describe("measureRun endpointWatch (integration)", () => {
         res.end(trackBody);
         return;
       }
+      if (req.url === "/late" || req.url?.startsWith("/late?")) {
+        const html = `<!DOCTYPE html><html><body><script>
+const el = document.createElement('div');
+el.setAttribute('data-ready', '');
+el.textContent = 'ready';
+document.body.appendChild(el);
+setTimeout(() => { void fetch('/api/track'); }, 200);
+</script></body></html>`;
+        res.writeHead(200, { "Content-Type": "text/html" });
+        res.end(html);
+        return;
+      }
       if (req.url === "/" || req.url?.startsWith("/?")) {
         const html = `<!DOCTYPE html><html><body><script>
 (async () => {
@@ -76,6 +88,7 @@ describe("measureRun endpointWatch (integration)", () => {
       navigationTimeoutMs: 30_000,
       readyTimeoutMs: 30_000,
       readyHiddenTimeoutMs: 5000,
+      waitForEndpointsTimeoutMs: 30_000,
       traceDir,
       screenshotDir,
       filePrefix: "int",
@@ -87,5 +100,38 @@ describe("measureRun endpointWatch (integration)", () => {
     expect(w!.callCount).toBe(3);
     const expectedBytes = 3 * Buffer.byteLength(JSON.stringify({ ok: true }));
     expect(w!.totalResponseBytes).toBe(expectedBytes);
+  });
+
+  it("waitForResponse waits for API after UI ready", async () => {
+    const rules = compileEndpointWatchRules([
+      {
+        id: "track",
+        urlIncludes: "/api/track",
+        method: "GET",
+        waitForResponse: true,
+      },
+    ]);
+    const traceDir = path.join(tmp, "traces-late");
+    const screenshotDir = path.join(tmp, "shots-late");
+    const result = await measureRun({
+      run: 1,
+      baseURL,
+      gotoURL: "/late",
+      headless: true,
+      readyVisible: "[data-ready]",
+      readyHidden: "[data-test=noop]",
+      skipReadyHidden: true,
+      navigationTimeoutMs: 30_000,
+      readyTimeoutMs: 30_000,
+      readyHiddenTimeoutMs: 5000,
+      waitForEndpointsTimeoutMs: 10_000,
+      traceDir,
+      screenshotDir,
+      filePrefix: "late",
+      endpointWatch: rules,
+    });
+
+    const w = result.endpointWatch.find((e) => e.id === "track");
+    expect(w?.callCount).toBe(1);
   });
 });

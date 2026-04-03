@@ -58,7 +58,6 @@ icib-perf-web-tester init [options] [dest]
 | --------------------------- | --------------------------------------------------------------------------------------------------------------------- |
 | `-c`, `--config <path>`     | Config JSON path. Default: `perf.config.json` (relative to **current working directory** when you start the process). |
 | `-o`, `--output-dir <path>` | Override **`outputDir`** from config. Resolved with `path.resolve()` from cwd.                                        |
-| `--debug-screenshots`       | Force **`debugScreenshots: true`** for this run (extra **before-ready** PNG per run; see section 13).                  |
 | `-h`, `--help`              | Print help and exit 0.                                                                                                |
 
 **`init`** (first argument must be exactly `init`):
@@ -94,7 +93,7 @@ icib-perf-add-check [options]
 
 - If the file **exists**: default is **merge** new `pages` entries; optional full replace with confirmation.
 - **New file**: asks for `baseURL`, optional `storageState`, optional **`localStorageState`** (flat JSON path), `runs`, `headless`, `outputDir`, `budgetMetric`, optional shared **defaults** (selectors + timeouts), optional **`defaults.endpointWatch`**, then loops **pages** (`url`, `maxReadyMs`, selector overrides, optional **`pages[].endpointWatch`**, optional timeouts).
-- **Endpoint prompts**: per rule, choose **substring** (`urlIncludes`) or **regex** (`urlRegex` + optional `urlRegexFlags`), then optional `id`, `method`, `maxCalls`, `maxTotalResponseBytes`.
+- **Endpoint prompts**: per rule, choose **substring** (`urlIncludes`) or **regex** (`urlRegex` + optional `urlRegexFlags`), then optional `id`, `method`, optional **wait for first response** (`waitForResponse`), `maxCalls`, `maxTotalResponseBytes`.
 
 ---
 
@@ -112,7 +111,12 @@ All keys below are for the **root** of the JSON file.
 | `headless`     | no       | boolean               | Default **true**.                                                                                                                              |
 | `outputDir`    | no       | string                | Artifacts root. Default **`.webperf`**. Resolved **relative to config file dir**.                                                              |
 | `budgetMetric` | no       | `"median"` \| `"p95"` | Stat compared to `pages[].maxReadyMs`. Default **`median`**.                                                                                   |
-| `debugScreenshots` | no  | boolean            | If **`true`**, save **`page-{i}-run-{k}-before-ready.png`** after **`goto`**, before **`readyVisible`**. CLI **`--debug-screenshots`** overrides for one run. |
+| `recordTrace`  | no       | boolean               | Default **off**. Set **`true`** for trace zips under **`traces/`**.                                                                           |
+| `recordScreenshot` | no   | boolean               | Default **off**. Set **`true`** for after-ready PNGs under **`screenshots/`**.                                                                |
+| `recordRequests` | no    | boolean               | Default **off**. Set **`true`** to populate **`requests`** / **`slowestRequests`** (listener overhead on busy pages).                           |
+| `fullPageScreenshot` | no | boolean            | Default **off**. With **`recordScreenshot`**, use **`true`** for full-page capture instead of viewport.                                       |
+| `traceSnapshots` | no     | boolean               | Default **off**. With **`recordTrace`**, set **`true`** for DOM snapshots in traces (heavy).                                                  |
+| `reportUntrackedRepeatApis` | no | boolean        | Default **on**. Fills **`RunResult.untrackedRepeatApis`**: XHR/fetch not matched by any **`endpointWatch`** rule but requested more than once in the run. Set **`false`** to disable. |
 | `defaults`     | no       | object                | Shared **defaults** object (section 7).                                                                                                        |
 
 ---
@@ -128,6 +132,7 @@ Applied to every **page** that does **not** override a given field (and used for
 | `navigationTimeoutMs`  | number | `60000` — `page.goto` timeout.                                                           |
 | `readyTimeoutMs`       | number | `60000` — wait for `readyVisible`.                                                       |
 | `readyHiddenTimeoutMs` | number | `15000` — wait for `readyHidden` hidden (ignored if hidden step skipped).                |
+| `waitForEndpointsTimeoutMs` | number | `30000` — max wait after UI ready for rules with **`waitForResponse: true`** (section 10). |
 | `endpointWatch`        | array  | No shared endpoint rules. Each element: **endpoint rule** (section 10).                  |
 
 ---
@@ -143,6 +148,7 @@ Applied to every **page** that does **not** override a given field (and used for
 | `navigationTimeoutMs`  | no       | number       | Overrides default goto timeout.                                                                                |
 | `readyTimeoutMs`       | no       | number       | Overrides visible selector timeout.                                                                            |
 | `readyHiddenTimeoutMs` | no       | number       | Overrides hidden selector timeout.                                                                             |
+| `waitForEndpointsTimeoutMs` | no    | number       | Overrides default **30000** for **`waitForResponse`** polling (section 10).                                    |
 | `endpointWatch`        | no       | array        | **Endpoint rules** (section 10). See **merge semantics** (section 9).                                          |
 
 ---
@@ -168,6 +174,7 @@ Applied to every **page** that does **not** override a given field (and used for
 | `method`                | no       | string      | Default **`GET`**. Compared **case-insensitively** to the request method.                                             |
 | `maxCalls`              | no       | integer ≥ 0 | If set: any **single run** with **more** matching responses **fails** that rule.                                      |
 | `maxTotalResponseBytes` | no       | number ≥ 0  | If set: any **single run** where the **sum** of response body sizes for matches **exceeds** this **fails** that rule. |
+| `waitForResponse`     | no       | boolean     | If **`true`**: after UI ready steps, **poll** until this rule has **≥ 1** matching response or **`waitForEndpointsTimeoutMs`** → **run throws** (failed measurement). |
 
 **Size measurement:** uses `Content-Length` when valid; otherwise reads **`response.body()`** for that response (only for **matched** URLs).
 
@@ -177,18 +184,18 @@ Applied to every **page** that does **not** override a given field (and used for
 
 ## 11. What one “run” does (per page, per iteration)
 
-1. Launch Chromium; context with `baseURL`, optional `storageState`, viewport 1440×900.
+1. Launch Chromium **once per configured page** (reuse across **`runs`**); each run still uses a **fresh** browser context.
 2. If **`localStorageState`** is set: **`addInitScript`** applies each key/value to `localStorage` before every document load (same origin as navigation).
-3. Start tracing; new page; network capture for request metrics.
-4. If endpoint rules exist: on each **response**, match URL + method; increment counts; record sizes (async).
+3. If **`recordTrace`**: start Playwright tracing. New page. If **`recordRequests`**: attach listeners for the full HTTP request list.
+4. If endpoint rules exist: on each **response**, match URL + method; increment counts; record sizes (async). In parallel (when enabled): count **xhr** / **fetch** responses that match **no** rule; after the run, emit those with **more than one** hit as **`untrackedRepeatApis`**.
 5. `goto` page `url` (`domcontentloaded`, `navigationTimeoutMs`).
-6. If **`debugScreenshots`**: full-page PNG **`…-run-{k}-before-ready.png`**.
-7. Wait until `readyVisible` is visible (`readyTimeoutMs`).
-8. Unless `readyHidden` is effectively skipped (`""`): try wait until `readyHidden` hidden (`readyHiddenTimeoutMs`); failure is swallowed (optional spinner).
+6. Wait until `readyVisible` is visible (`readyTimeoutMs`).
+7. Unless `readyHidden` is effectively skipped (`""`): try wait until `readyHidden` hidden (`readyHiddenTimeoutMs`); failure is swallowed (optional spinner).
+8. If any rule has **`waitForResponse: true`**: **poll** matched **call counts** until each such rule has **≥ 1** hit or **`waitForEndpointsTimeoutMs`** elapses (**throw** on timeout).
 9. Record **readyMs** (wall time from step 5 start through step 8).
-10. Read navigation timing from the page; finalize request list; await all endpoint size promises.
-11. Full-page screenshot (**`…-run-{k}.png`** — after-ready), stop trace, close browser.
-12. Emit one **`RunResult`** (including `endpointWatch` stats per rule; **`debugScreenshotBeforePath`** when step 6 ran).
+10. Read navigation timing from the page; await endpoint size promises; build request list only if **`recordRequests`**.
+11. If **`recordScreenshot`**: save PNG. If **`recordTrace`**: stop trace to disk. Close context (browser stays up for the next run of the same page).
+12. Emit one **`RunResult`** (`screenshotPath` / `tracePath` empty when off; **`untrackedRepeatApis`** empty when disabled or no duplicate untracked APIs).
 
 ---
 
@@ -221,8 +228,8 @@ Applied to every **page** that does **not** override a given field (and used for
 | Path           | Content                                                                                                                                                                                               |
 | -------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `results.json` | Full **`SuiteSummary`**: `budgetMetric`, `outputDir`, `resultFile`, `passed`, `pages[]` each with `timingPassed`, `endpointWatchPassed`, `passed`, stats, `endpointRules`, `results` (`RunResult[]`). |
-| `screenshots/` | PNG per page run: **`page-{i}-run-{k}.png`** (after ready). With **`debugScreenshots`**, also **`page-{i}-run-{k}-before-ready.png`** (after `goto`, before ready selectors). |
-| `traces/`      | Playwright trace zip per page run.                                                                                                                                                                    |
+| `screenshots/` | Only if **`recordScreenshot`**: **`page-{i}-run-{k}.png`** (after ready). |
+| `traces/`      | Only if **`recordTrace`**: Playwright trace zip per run.                                                                                                                                              |
 
 Treat `outputDir` as **disposable** in CI; add to `.gitignore` if local.
 
@@ -238,12 +245,11 @@ import { loadConfig, runSuite } from "icib-perf-web-tester";
 const config = loadConfig("perf.config.json");
 const summary = await runSuite(config, {
   outputDirOverride: process.env.PERF_OUT, // optional string
-  debugScreenshots: true, // optional; overrides config.debugScreenshots
 });
 process.exitCode = summary.passed ? 0 : 1;
 ```
 
-`loadConfig` resolves **`storageState`**, **`localStorageState`**, and **`outputDir`** on disk relative to the config file; `runSuite` uses `config.outputDir` unless `outputDirOverride` is set. **`runSuite`’s `options.debugScreenshots`**, when set, overrides **`config.debugScreenshots`** for that run.
+`loadConfig` resolves **`storageState`**, **`localStorageState`**, and **`outputDir`** on disk relative to the config file; `runSuite` uses `config.outputDir` unless `outputDirOverride` is set.
 
 ### 14.2 Exports (functions)
 
@@ -260,6 +266,7 @@ process.exitCode = summary.passed ? 0 : 1;
 | `loadLocalStoragePairsFromFile(absPath)`                 | Parse flat JSON file → `Record<string, string>` for custom tooling.            |
 | `evaluateEndpointRules(rules, results)`                  | Compute `EndpointRuleSummary[]` from `RunResult[]`.                            |
 | `percentile(values, p)`                                  | Stats helper (0–100).                                                          |
+| `responseMatchesAnyEndpointRule`, `createUntrackedRepeatApiCollector` | Same logic as duplicate-untracked API detection (custom tooling). |
 | `methodsMatch`, `urlMatchesRule`, `getResponseSizeBytes` | Endpoint matching / sizing helpers (tests or custom tooling).                  |
 
 ### 14.3 Exports (types)
@@ -289,7 +296,7 @@ process.exitCode = summary.passed ? 0 : 1;
 | `exactly one of urlIncludes or urlRegex` | Invalid `endpointWatch` object.                                                                        |
 | `invalid urlRegex`                       | Bad pattern/flags; fix escaping in JSON.                                                               |
 | Timeout on `readyVisible`                | Selector wrong, app slow, or `baseURL`/`url` wrong.                                                    |
-| Endpoint count 0                         | Pattern does not match **full** URL; method mismatch; requests happen before/after measurement window. |
+| Endpoint count 0                         | Pattern does not match **full** URL; method mismatch; **`waitForResponse`** timeout; non-xhr/fetch resource type. |
 | CI: browser missing                      | Run `npx playwright install chromium` in CI.                                                           |
 | `init` / `Refusing to overwrite`         | Destination config exists; use **`--force`** or remove the file.                                       |
 | `init` / `playwright install` failed     | Install **`playwright`** in the app (`npm install -D playwright`) or use **`init --skip-browsers`** if browsers are installed elsewhere. |

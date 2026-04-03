@@ -9,6 +9,12 @@ Measure **time-to-ready** for web pages with [Playwright](https://playwright.dev
 
 **AI / MCP agents:** [AGENTS.md](./AGENTS.md) is a **self-contained** reference (config, CLIs, pass/fail, API, artifacts)—no other doc required for integration.
 
+### Speed & default telemetry
+
+**By default** the runner only measures what you need for budgets: **`readyMs`**, navigation timing, and **`endpointWatch`** (matched API counts / sizes). It does **not** record Playwright traces, **does not** save screenshots, and **does not** attach listeners for the full HTTP request list — those are all **opt-in** (see below). One **Chromium** is reused for all **`runs`** of each page.
+
+To **debug** a failure, turn artifacts back on in JSON: **`"recordTrace": true`**, **`"recordScreenshot": true`**, **`"recordRequests": true`** (full request log / `slowestRequests`), and optionally **`"fullPageScreenshot": true`** or **`"traceSnapshots": true`**.
+
 ## Install
 
 In the app you want to test:
@@ -56,7 +62,12 @@ Paths in the JSON are resolved **relative to the config file’s directory** unl
 - **`budgetMetric`** — `"median"` (default) or `"p95"`. The chosen value is compared to `maxReadyMs`.
 - **`storageState`** — Optional path to **Playwright** storage state (`cookies`, optional `origins`…). Not a flat token file.
 - **`localStorageState`** — Optional path to **flat** JSON `{ "key": "value" }`. Each pair is applied with `localStorage.setItem` before your app runs. Use for custom keys (e.g. `accessTokenAdmin`). Same path rules as other config paths. Can be combined with `storageState`.
-- **`debugScreenshots`** — Optional boolean. When **`true`**, each run saves an extra full-page PNG right after navigation (`domcontentloaded`), before waiting for **`readyVisible`** (`*-before-ready.png`). The normal **`page-*-run-*.png`** is still taken after ready (unchanged). Overridable with CLI **`--debug-screenshots`**.
+- **`recordTrace`** — Optional. Default **off**. Set **`true`** to write Playwright trace zips under **`traces/`**.
+- **`recordScreenshot`** — Optional. Default **off**. Set **`true`** to write **`screenshots/page-*-run-*.png`** after ready.
+- **`recordRequests`** — Optional. Default **off**. Set **`true`** to fill **`results.requests`** / **`slowestRequests`** (adds overhead on busy pages).
+- **`fullPageScreenshot`** — Optional. Default **off** (viewport only when screenshots are on). Set **`true`** with **`recordScreenshot`** for full-page PNGs.
+- **`traceSnapshots`** — Optional. Default **off**. Set **`true`** with **`recordTrace`** for DOM snapshots inside traces (heavy).
+- **`reportUntrackedRepeatApis`** — Optional. Default **on**. When **`true`**, each run adds **`untrackedRepeatApis`** to **`results.json`**: XHR/fetch URLs that **do not** match any **`endpointWatch`** rule but were requested **more than once** in that run (helps spot duplicate or missing rules). Set **`false`** to disable.
 - **`readyHidden`** — Set to `""` in defaults or on a page to skip the “wait until hidden” step.
 
 ### `endpointWatch` (optional)
@@ -66,7 +77,9 @@ Define rules on **`defaults.endpointWatch`** (applies to every page that does **
 - **`urlIncludes`** — substring match on the full URL (`https://…` including query), or
 - **`urlRegex`** — regex **pattern** only (not `/…/flags`), with optional **`urlRegexFlags`** (e.g. `"i"`).
 
-Optional: **`id`** (defaults to the include string or regex), **`method`** (default `GET`), **`maxCalls`** (fail a run if more matching responses than this), **`maxTotalResponseBytes`** (fail a run if the sum of body sizes for matching responses exceeds this). Size uses `Content-Length` when valid, otherwise reads the response body (for matched calls only).
+Optional: **`id`** (defaults to the include string or regex), **`method`** (default `GET`), **`maxCalls`** (fail a run if more matching responses than this), **`maxTotalResponseBytes`** (fail a run if the sum of body sizes for matching responses exceeds this), **`waitForResponse`** (when **`true`**, after **`readyVisible`** / **`readyHidden`** the run **polls** until each such rule has at least one matching XHR/fetch response, or **`waitForEndpointsTimeoutMs`** elapses and the run **fails**). Use this when the UI becomes “ready” before the API you care about finishes. Size uses `Content-Length` when valid, otherwise reads the response body (for matched calls only).
+
+On **`defaults`** or each **page**, optional **`waitForEndpointsTimeoutMs`** (default **30000**) caps that wait.
 
 In JSON, **escape backslashes** in regex patterns (e.g. `\\d` for `\d`).
 
@@ -95,7 +108,6 @@ npx icib-perf-web-tester init --force ./config/perf.config.json
 | --------------------------- | ----------------------------------------- |
 | `-c`, `--config <path>`     | Config file (default: `perf.config.json`) |
 | `-o`, `--output-dir <path>` | Override `outputDir` from config          |
-| `--debug-screenshots`       | Save an extra **before-ready** PNG each run (also set `debugScreenshots` in JSON) |
 | `-h`, `--help`              | Help for the run command                  |
 
 ### `init` subcommand
@@ -112,7 +124,7 @@ npx icib-perf-web-tester init --force ./config/perf.config.json
 - **0** — Run: all pages pass **timing** and **`endpointWatch`** budgets. **Init:** success.
 - **1** — Run: invalid config / missing files, or any budget failure. **Init:** missing example file, refused overwrite, or browser install failed.
 
-Artifacts are written under `outputDir`: `results.json`, `screenshots/`, `traces/`. With **`debugScreenshots`** (config or `--debug-screenshots`), each run also writes `page-{n}-run-{k}-before-ready.png` right after `domcontentloaded`; the usual `page-{n}-run-{k}.png` is still the **after-ready** full-page capture.
+Artifacts: **`results.json`** is always written. **`screenshots/`** and **`traces/`** only when **`recordScreenshot`** / **`recordTrace`** are **`true`**.
 
 ### npm script
 
@@ -135,8 +147,6 @@ if (!summary.passed) {
   process.exitCode = 1;
 }
 ```
-
-Use `runSuite(config, { debugScreenshots: true })` to force the same extra **before-ready** screenshots as the **`--debug-screenshots`** CLI flag.
 
 For custom Playwright flows, **`applyLocalStorageInitScript(context, absPath)`** registers the same `localStorage` init script the runner uses (after `browser.newContext()`, before navigation). **`loadLocalStoragePairsFromFile(absPath)`** parses the flat JSON only.
 

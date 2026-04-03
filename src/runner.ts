@@ -1,9 +1,13 @@
 import fs from "node:fs";
 import path from "node:path";
 import { performance } from "node:perf_hooks";
-import { chromium, type Page } from "playwright";
+import { chromium, type Browser, type Page } from "playwright";
 import { applyLocalStorageInitScript } from "./local-storage-inject.js";
-import { createEndpointWatchCollector } from "./endpoint-watch.js";
+import {
+  createEndpointWatchCollector,
+  createUntrackedRepeatApiCollector,
+  waitForTrackedEndpointResponses,
+} from "./endpoint-watch.js";
 import type {
   NavigationMetrics,
   ParsedEndpointWatchRule,
@@ -25,11 +29,25 @@ export type MeasureRunOptions = {
   navigationTimeoutMs: number;
   readyTimeoutMs: number;
   readyHiddenTimeoutMs: number;
+  /** Used when any `endpointWatch` rule has `waitForResponse: true`. */
+  waitForEndpointsTimeoutMs: number;
   traceDir: string;
   screenshotDir: string;
   filePrefix: string;
-  /** Capture PNG after goto, before waiting for ready selectors (for debugging). */
-  debugScreenshots?: boolean;
+  /** Reuse one browser across runs (suite); fresh context per run. */
+  sharedBrowser?: Browser;
+  /** Record Playwright trace zip. Default false. */
+  recordTrace?: boolean;
+  /** Save after-ready PNG. Default false. */
+  recordScreenshot?: boolean;
+  /** Attach listeners for full request list / slowestRequests. Default false. */
+  recordRequests?: boolean;
+  /** Full-page vs viewport when screenshotting. Default false. */
+  fullPageScreenshot?: boolean;
+  /** DOM snapshots inside trace. Default false. */
+  traceSnapshots?: boolean;
+  /** List duplicate untracked XHR/fetch. Default true. */
+  reportUntrackedRepeatApis?: boolean;
   endpointWatch?: ParsedEndpointWatchRule[];
 };
 
@@ -171,17 +189,34 @@ export async function measureRun(
     navigationTimeoutMs,
     readyTimeoutMs,
     readyHiddenTimeoutMs,
+    waitForEndpointsTimeoutMs,
     traceDir,
     screenshotDir,
     filePrefix,
-    debugScreenshots,
+    sharedBrowser,
+    recordTrace: recordTraceOpt,
+    recordScreenshot: recordScreenshotOpt,
+    recordRequests: recordRequestsOpt,
+    fullPageScreenshot: fullPageOpt,
+    traceSnapshots: traceSnapshotsOpt,
+    reportUntrackedRepeatApis: reportUntrackedRepeatApisOpt,
     endpointWatch: endpointWatchOpt,
   } = options;
+
+  const reportUntrackedRepeatApis = reportUntrackedRepeatApisOpt !== false;
+  const recordTrace = recordTraceOpt === true;
+  const recordScreenshot = recordScreenshotOpt === true;
+  const recordRequests = recordRequestsOpt === true;
+  const fullPage = fullPageOpt === true;
+  const traceSnapshots = traceSnapshotsOpt === true;
+  const ownBrowser = sharedBrowser === undefined;
+  const browser = ownBrowser
+    ? await chromium.launch({ headless })
+    : sharedBrowser;
 
   fs.mkdirSync(traceDir, { recursive: true });
   fs.mkdirSync(screenshotDir, { recursive: true });
 
-  const browser = await chromium.launch({ headless });
   const contextOptions: Parameters<typeof browser.newContext>[0] = {
     baseURL,
     viewport: { width: 1440, height: 900 },
@@ -189,90 +224,128 @@ export async function measureRun(
   if (storageState) {
     contextOptions.storageState = storageState;
   }
+
+  const traceFilePath = path.join(traceDir, `${filePrefix}-run-${run}.zip`);
+  let traceActive = false;
+
   const context = await browser.newContext(contextOptions);
+  try {
+    if (localStorageState) {
+      await applyLocalStorageInitScript(context, localStorageState);
+    }
 
-  if (localStorageState) {
-    await applyLocalStorageInitScript(context, localStorageState);
-  }
+    if (recordTrace) {
+      await context.tracing.start({
+        screenshots: true,
+        snapshots: traceSnapshots,
+      });
+      traceActive = true;
+    }
 
-  await context.tracing.start({ screenshots: true, snapshots: true });
+    const page = await context.newPage();
+    const requests = recordRequests
+      ? wireNetworkCapture(page)
+      : () => [] as RequestMetric[];
+    const rules = endpointWatchOpt ?? [];
+    const endpointCollector =
+      rules.length > 0 ? createEndpointWatchCollector(rules) : null;
+    if (endpointCollector) {
+      page.on("response", (response) => endpointCollector.onResponse(response));
+    }
 
-  const page = await context.newPage();
-  const requests = wireNetworkCapture(page);
-  const rules = endpointWatchOpt ?? [];
-  const endpointCollector =
-    rules.length > 0 ? createEndpointWatchCollector(rules) : null;
-  if (endpointCollector) {
-    page.on("response", (response) => endpointCollector.onResponse(response));
-  }
+    const repeatCollector = reportUntrackedRepeatApis
+      ? createUntrackedRepeatApiCollector(rules)
+      : null;
+    if (repeatCollector) {
+      page.on("response", (response) => repeatCollector.onResponse(response));
+    }
 
-  const startedAt = new Date().toISOString();
-  const start = performance.now();
+    const startedAt = new Date().toISOString();
+    const start = performance.now();
 
-  await page.goto(gotoURL, {
-    waitUntil: "domcontentloaded",
-    timeout: navigationTimeoutMs,
-  });
+    await page.goto(gotoURL, {
+      waitUntil: "domcontentloaded",
+      timeout: navigationTimeoutMs,
+    });
 
-  let debugScreenshotBeforePath: string | undefined;
-  if (debugScreenshots) {
-    debugScreenshotBeforePath = path.join(
-      screenshotDir,
-      `${filePrefix}-run-${run}-before-ready.png`,
-    );
-    await page.screenshot({ path: debugScreenshotBeforePath, fullPage: true });
-  }
+    await page
+      .locator(readyVisible)
+      .waitFor({ state: "visible", timeout: readyTimeoutMs });
 
-  await page
-    .locator(readyVisible)
-    .waitFor({ state: "visible", timeout: readyTimeoutMs });
+    if (!skipReadyHidden) {
+      try {
+        await page
+          .locator(readyHidden)
+          .waitFor({ state: "hidden", timeout: readyHiddenTimeoutMs });
+      } catch {
+        // Optional: some dashboards may keep polling or may not render this element.
+      }
+    }
 
-  if (!skipReadyHidden) {
-    try {
-      await page
-        .locator(readyHidden)
-        .waitFor({ state: "hidden", timeout: readyHiddenTimeoutMs });
-    } catch {
-      // Optional: some dashboards may keep polling or may not render this element.
+    if (
+      endpointCollector &&
+      rules.some((r) => r.waitForResponse === true)
+    ) {
+      await waitForTrackedEndpointResponses(
+        () => endpointCollector.getCallCounts(),
+        rules,
+        waitForEndpointsTimeoutMs,
+      );
+    }
+
+    const readyMs = performance.now() - start;
+
+    const navigation = await readNavigationMetrics(page);
+    const allRequests = requests();
+    const endpointWatch = endpointCollector
+      ? await endpointCollector.snapshot()
+      : [];
+    const untrackedRepeatApis = repeatCollector
+      ? repeatCollector.snapshot()
+      : [];
+
+    const screenshotPath = recordScreenshot
+      ? path.join(screenshotDir, `${filePrefix}-run-${run}.png`)
+      : "";
+
+    if (recordScreenshot) {
+      await page.screenshot({ path: screenshotPath, fullPage });
+    }
+
+    let tracePath = "";
+    if (recordTrace && traceActive) {
+      tracePath = traceFilePath;
+      await context.tracing.stop({ path: tracePath });
+      traceActive = false;
+    }
+
+    const slowestRequests = [...allRequests]
+      .filter((r) => r.durationMs !== null)
+      .sort((a, b) => (b.durationMs ?? 0) - (a.durationMs ?? 0))
+      .slice(0, 10);
+
+    return {
+      run,
+      startedAt,
+      url: gotoURL,
+      readyMs,
+      navigation,
+      requests: allRequests,
+      totalRequests: allRequests.length,
+      failedRequests: allRequests.filter((r) => r.failed).length,
+      slowestRequests,
+      screenshotPath,
+      tracePath,
+      endpointWatch,
+      untrackedRepeatApis,
+    };
+  } finally {
+    if (traceActive) {
+      await context.tracing.stop({ path: traceFilePath }).catch(() => {});
+    }
+    await context.close().catch(() => {});
+    if (ownBrowser) {
+      await browser.close().catch(() => {});
     }
   }
-
-  const readyMs = performance.now() - start;
-
-  const navigation = await readNavigationMetrics(page);
-  const allRequests = requests();
-  const endpointWatch = endpointCollector
-    ? await endpointCollector.snapshot()
-    : [];
-
-  const screenshotPath = path.join(
-    screenshotDir,
-    `${filePrefix}-run-${run}.png`,
-  );
-  const tracePath = path.join(traceDir, `${filePrefix}-run-${run}.zip`);
-
-  await page.screenshot({ path: screenshotPath, fullPage: true });
-  await context.tracing.stop({ path: tracePath });
-  await browser.close();
-
-  const slowestRequests = [...allRequests]
-    .filter((r) => r.durationMs !== null)
-    .sort((a, b) => (b.durationMs ?? 0) - (a.durationMs ?? 0))
-    .slice(0, 10);
-
-  return {
-    run,
-    startedAt,
-    url: gotoURL,
-    readyMs,
-    navigation,
-    requests: allRequests,
-    totalRequests: allRequests.length,
-    failedRequests: allRequests.filter((r) => r.failed).length,
-    slowestRequests,
-    screenshotPath,
-    debugScreenshotBeforePath,
-    tracePath,
-    endpointWatch,
-  };
 }

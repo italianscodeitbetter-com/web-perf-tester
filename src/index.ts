@@ -12,8 +12,10 @@ export {
 } from "./local-storage-inject.js";
 export { evaluateEndpointRules } from "./endpoint-eval.js";
 export {
+  createUntrackedRepeatApiCollector,
   getResponseSizeBytes,
   methodsMatch,
+  responseMatchesAnyEndpointRule,
   urlMatchesRule,
 } from "./endpoint-watch.js";
 export { percentile } from "./stats.js";
@@ -35,4 +37,5 @@ export type {
   ResolvedPageTiming,
   RunResult,
   SuiteSummary,
+  UntrackedRepeatApiCall,
 } from "./types.js";

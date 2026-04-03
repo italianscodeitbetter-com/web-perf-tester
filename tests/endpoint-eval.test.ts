@@ -27,6 +27,7 @@ function baseRun(run: number, ep: RunResult["endpointWatch"]): RunResult {
     screenshotPath: "",
     tracePath: "",
     endpointWatch: ep,
+    untrackedRepeatApis: [],
   };
 }
 

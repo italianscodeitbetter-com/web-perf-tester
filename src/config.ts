@@ -99,6 +99,12 @@ function parseDefaults(raw: unknown, ctx: string): PerfDefaults | undefined {
       false,
       `${ctx}.defaults`,
     ),
+    waitForEndpointsTimeoutMs: expectNumber(
+      raw,
+      "waitForEndpointsTimeoutMs",
+      false,
+      `${ctx}.defaults`,
+    ),
     endpointWatch: parseEndpointWatchArray(
       raw.endpointWatch,
       `${ctx}.defaults`,
@@ -157,6 +163,8 @@ function parseEndpointWatchRule(
     rule.urlRegex = regex;
     if (flags !== "") rule.urlRegexFlags = flags;
   }
+  const waitForResponse = expectBoolean(raw, "waitForResponse", c);
+  if (waitForResponse !== undefined) rule.waitForResponse = waitForResponse;
   return rule;
 }
 
@@ -228,6 +236,12 @@ function parsePage(raw: unknown, index: number): PerfPageConfig {
     navigationTimeoutMs: expectNumber(raw, "navigationTimeoutMs", false, ctx),
     readyTimeoutMs: expectNumber(raw, "readyTimeoutMs", false, ctx),
     readyHiddenTimeoutMs: expectNumber(raw, "readyHiddenTimeoutMs", false, ctx),
+    waitForEndpointsTimeoutMs: expectNumber(
+      raw,
+      "waitForEndpointsTimeoutMs",
+      false,
+      ctx,
+    ),
     endpointWatch: parseEndpointWatchArray(raw.endpointWatch, ctx),
   };
 }
@@ -248,7 +262,16 @@ function parseRoot(raw: unknown): PerfConfig {
     headless: expectBoolean(raw, "headless", "config"),
     outputDir: expectString(raw, "outputDir", false, "config"),
     budgetMetric: parseBudgetMetric(raw.budgetMetric, "config"),
-    debugScreenshots: expectBoolean(raw, "debugScreenshots", "config"),
+    recordTrace: expectBoolean(raw, "recordTrace", "config"),
+    recordScreenshot: expectBoolean(raw, "recordScreenshot", "config"),
+    recordRequests: expectBoolean(raw, "recordRequests", "config"),
+    fullPageScreenshot: expectBoolean(raw, "fullPageScreenshot", "config"),
+    traceSnapshots: expectBoolean(raw, "traceSnapshots", "config"),
+    reportUntrackedRepeatApis: expectBoolean(
+      raw,
+      "reportUntrackedRepeatApis",
+      "config",
+    ),
     defaults: parseDefaults(raw.defaults, "config"),
     pages,
   };
@@ -307,6 +330,7 @@ export type MergedPageOptions = {
   navigationTimeoutMs: number;
   readyTimeoutMs: number;
   readyHiddenTimeoutMs: number;
+  waitForEndpointsTimeoutMs: number;
 };
 
 export function mergePageOptions(
@@ -320,6 +344,14 @@ export function mergePageOptions(
   const skipReadyHidden = readyHiddenRaw.trim() === "";
   const readyHidden = skipReadyHidden ? DEFAULT_READY_HIDDEN : readyHiddenRaw;
 
+  const waitForEndpointsTimeoutMs =
+    page.waitForEndpointsTimeoutMs ??
+    defaults?.waitForEndpointsTimeoutMs ??
+    30_000;
+  if (waitForEndpointsTimeoutMs < 0) {
+    throw new Error("waitForEndpointsTimeoutMs must be >= 0");
+  }
+
   return {
     url: page.url,
     maxReadyMs: page.maxReadyMs,
@@ -331,5 +363,6 @@ export function mergePageOptions(
     readyTimeoutMs: page.readyTimeoutMs ?? defaults?.readyTimeoutMs ?? 60_000,
     readyHiddenTimeoutMs:
       page.readyHiddenTimeoutMs ?? defaults?.readyHiddenTimeoutMs ?? 15_000,
+    waitForEndpointsTimeoutMs,
   };
 }

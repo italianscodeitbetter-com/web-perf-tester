@@ -90,6 +90,14 @@ async function collectEndpointWatchRules(
           : String(rule.urlRegex);
       rule.id = await ask("Rule id (label in results)", defaultId);
       rule.method = await ask("HTTP method", "GET");
+      if (
+        await confirm(
+          "Wait after UI ready until this endpoint responds at least once (waitForResponse)?",
+          false,
+        )
+      ) {
+        rule.waitForResponse = true;
+      }
       if (await confirm("Set maxCalls budget for this rule?", false)) {
         rule.maxCalls = await askNumber("maxCalls", 1);
       }
