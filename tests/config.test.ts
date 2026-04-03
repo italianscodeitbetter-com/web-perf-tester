@@ -124,6 +124,46 @@ describe("mergeEndpointWatch", () => {
   });
 });
 
+describe("loadConfig localStorageState", () => {
+  it("resolves path relative to config file directory", () => {
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "perf-cfg-"));
+    const sub = path.join(tmpDir, "secrets");
+    fs.mkdirSync(sub, { recursive: true });
+    const lsPath = path.join(sub, "tokens.json");
+    fs.writeFileSync(lsPath, JSON.stringify({ k: "v" }), "utf8");
+    const cfgPath = path.join(tmpDir, "perf.json");
+    fs.writeFileSync(
+      cfgPath,
+      JSON.stringify({
+        baseURL: "https://app.example.com",
+        localStorageState: "secrets/tokens.json",
+        pages: [minimalPage],
+      }),
+      "utf8",
+    );
+    const c = loadConfig(cfgPath);
+    expect(c.localStorageState).toBe(lsPath);
+  });
+
+  it("throws when localStorageState file is missing", () => {
+    const p = writeConfig("c.json", {
+      baseURL: "https://a.com",
+      localStorageState: "missing.json",
+      pages: [minimalPage],
+    });
+    expect(() => loadConfig(p)).toThrow(/localStorageState file not found/);
+  });
+
+  it("omits localStorageState when not set", () => {
+    const p = writeConfig("c.json", {
+      baseURL: "https://a.com",
+      pages: [minimalPage],
+    });
+    const c = loadConfig(p);
+    expect(c.localStorageState).toBeUndefined();
+  });
+});
+
 describe("compileEndpointWatchRules", () => {
   it("compiles regex rules", () => {
     const r = compileEndpointWatchRules([

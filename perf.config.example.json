@@ -1,6 +1,6 @@
 {
   "baseURL": "https://app.example.com",
-  "storageState": ".webperf/auth.json",
+  "localStorageState": ".webperf/auth-tokens.json",
   "runs": 5,
   "headless": true,
   "outputDir": ".webperf",

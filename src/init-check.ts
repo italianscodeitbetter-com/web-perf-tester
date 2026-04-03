@@ -216,6 +216,12 @@ async function main() {
       );
       if (storage) config.storageState = storage;
 
+      const lsFile = await ask(
+        "localStorageState path (flat JSON → localStorage; not Playwright storageState; empty to skip)",
+        "",
+      );
+      if (lsFile) config.localStorageState = lsFile;
+
       config.runs = await askNumber("Number of runs per page", 5);
       config.headless = await confirm("Run headless?", true);
       config.outputDir = await ask("outputDir", ".webperf");

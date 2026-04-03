@@ -53,6 +53,7 @@ export async function runSuite(
         baseURL: config.baseURL,
         gotoURL,
         storageState: config.storageState,
+        localStorageState: config.localStorageState,
         headless,
         readyVisible: merged.readyVisible,
         readyHidden: merged.readyHidden,

@@ -89,7 +89,8 @@ All keys below are for the **root** of the JSON file.
 | -------------- | -------- | --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
 | `baseURL`      | **yes**  | string                | Playwright `baseURL`. Used with **relative** `pages[].url` (e.g. `/dash` → `baseURL + /dash`).                                                 |
 | `pages`        | **yes**  | array                 | Non-empty. Each item is a **page** object (section 8).                                                                                         |
-| `storageState` | no       | string                | Path to Playwright storage state JSON (cookies/session). Resolved **relative to config file dir**. File **must exist** or `loadConfig` throws. |
+| `storageState` | no       | string                | **Playwright** storage state (`cookies`, `origins`…). Resolved **relative to config file dir**. File **must exist** if set. |
+| `localStorageState` | no | string           | **Flat** JSON `{ "key": "value" }` → `localStorage.setItem` via `addInitScript` before each document. Same path resolution; file **must exist** if set. Not Playwright `storageState` format. |
 | `runs`         | no       | number (integer ≥ 1)  | Repetitions per page. Default **5**.                                                                                                           |
 | `headless`     | no       | boolean               | Default **true**.                                                                                                                              |
 | `outputDir`    | no       | string                | Artifacts root. Default **`.webperf`**. Resolved **relative to config file dir**.                                                              |
@@ -221,19 +222,20 @@ const summary = await runSuite(config, {
 process.exitCode = summary.passed ? 0 : 1;
 ```
 
-`loadConfig` resolves **`storageState`** and **`outputDir`** on disk relative to the config file; `runSuite` uses `config.outputDir` unless `outputDirOverride` is set.
+`loadConfig` resolves **`storageState`**, **`localStorageState`**, and **`outputDir`** on disk relative to the config file; `runSuite` uses `config.outputDir` unless `outputDirOverride` is set.
 
 ### 14.2 Exports (functions)
 
 | Export                                                   | Role                                                                           |
 | -------------------------------------------------------- | ------------------------------------------------------------------------------ |
-| `loadConfig(path)`                                       | Read + validate JSON; resolve paths; return `PerfConfig`.                      |
+| `loadConfig(path)`                                       | Read + validate JSON; resolve `storageState`, `localStorageState`, `outputDir`; return `PerfConfig`. |
 | `runSuite(config, options?)`                             | Run all pages; write `results.json`; return `SuiteSummary`.                    |
 | `measureRun(options)`                                    | Single Playwright measurement; lower-level (see `MeasureRunOptions` in types). |
 | `mergePageOptions(defaults, page)`                       | Resolved selector/timeouts for a page.                                         |
 | `mergeEndpointWatch(defaults, page)`                     | Resolved **`ParsedEndpointWatchRule[]`** for a page.                           |
 | `compileEndpointWatchRules(rules)`                       | Attach `compiledRegex` from JSON rules.                                        |
 | `resolveFromConfigDir(configPath, p)`                    | Resolve a path next to the config file.                                        |
+| `loadLocalStoragePairsFromFile(absPath)`                 | Parse flat JSON file → `Record<string, string>` for custom tooling.            |
 | `evaluateEndpointRules(rules, results)`                  | Compute `EndpointRuleSummary[]` from `RunResult[]`.                            |
 | `percentile(values, p)`                                  | Stats helper (0–100).                                                          |
 | `methodsMatch`, `urlMatchesRule`, `getResponseSizeBytes` | Endpoint matching / sizing helpers (tests or custom tooling).                  |
@@ -250,7 +252,7 @@ process.exitCode = summary.passed ? 0 : 1;
 2. Add `perf.config.json` (copy from package `perf.config.example.json` or use wizard).
 3. Set **`baseURL`**, **`pages`**, stable **`readyVisible`** / **`readyHidden`**.
 4. Add npm script: `icib-perf-web-tester --config perf.config.json`.
-5. `.gitignore` **`outputDir`** (and secrets): traces, screenshots, `storageState` if sensitive.
+5. `.gitignore` **`outputDir`** (and secrets): traces, screenshots, `storageState` / `localStorageState` files if sensitive.
 6. Wire CI: install browsers → run script → fail on exit **1**.
 
 ---
@@ -260,6 +262,8 @@ process.exitCode = summary.passed ? 0 : 1;
 | Symptom                                  | Likely cause                                                                                           |
 | ---------------------------------------- | ------------------------------------------------------------------------------------------------------ |
 | `storageState file not found`            | Path in JSON wrong; remember resolution is **relative to config file**, not cwd.                       |
+| `localStorageState file not found`       | Same as above for the flat JSON path.                                                                  |
+| Playwright rejects `storageState`      | File is not Playwright format (e.g. flat tokens). Use **`localStorageState`** for flat `{ "key": "value" }` JSON. |
 | `exactly one of urlIncludes or urlRegex` | Invalid `endpointWatch` object.                                                                        |
 | `invalid urlRegex`                       | Bad pattern/flags; fix escaping in JSON.                                                               |
 | Timeout on `readyVisible`                | Selector wrong, app slow, or `baseURL`/`url` wrong.                                                    |

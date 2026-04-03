@@ -243,6 +243,7 @@ function parseRoot(raw: unknown): PerfConfig {
   return {
     baseURL,
     storageState: expectString(raw, "storageState", false, "config"),
+    localStorageState: expectString(raw, "localStorageState", false, "config"),
     runs: expectNumber(raw, "runs", false, "config"),
     headless: expectBoolean(raw, "headless", "config"),
     outputDir: expectString(raw, "outputDir", false, "config"),
@@ -275,15 +276,23 @@ export function loadConfig(configPath: string): PerfConfig {
   }
   const config = parseRoot(parsed);
   const storageState = resolveFromConfigDir(abs, config.storageState);
+  const localStorageState = resolveFromConfigDir(
+    abs,
+    config.localStorageState,
+  );
   const outputDir = resolveFromConfigDir(abs, config.outputDir ?? ".webperf")!;
 
   if (storageState !== undefined && !fs.existsSync(storageState)) {
     throw new Error(`storageState file not found: ${storageState}`);
   }
+  if (localStorageState !== undefined && !fs.existsSync(localStorageState)) {
+    throw new Error(`localStorageState file not found: ${localStorageState}`);
+  }
 
   return {
     ...config,
     storageState,
+    localStorageState,
     outputDir,
   };
 }

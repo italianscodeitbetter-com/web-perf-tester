@@ -45,7 +45,8 @@ Paths in the JSON are resolved **relative to the config file’s directory** unl
 - **`baseURL`** — Required. Used as Playwright `baseURL` for relative `pages[].url` values.
 - **`pages`** — Required non-empty array. Each entry needs **`url`** (path or full `https://…` URL) and **`maxReadyMs`** (budget in milliseconds).
 - **`budgetMetric`** — `"median"` (default) or `"p95"`. The chosen value is compared to `maxReadyMs`.
-- **`storageState`** — Optional Playwright storage state JSON for authenticated sessions. Omit for public pages.
+- **`storageState`** — Optional path to **Playwright** storage state (`cookies`, optional `origins`…). Not a flat token file.
+- **`localStorageState`** — Optional path to **flat** JSON `{ "key": "value" }`. Each pair is applied with `localStorage.setItem` before your app runs. Use for custom keys (e.g. `accessTokenAdmin`). Same path rules as other config paths. Can be combined with `storageState`.
 - **`readyHidden`** — Set to `""` in defaults or on a page to skip the “wait until hidden” step.
 
 ### `endpointWatch` (optional)
@@ -70,7 +71,7 @@ npx icib-perf-add-check
 npx icib-perf-add-check --config ./config/perf.config.json
 ```
 
-For a **new** file, it asks for `baseURL`, optional `storageState`, `runs`, `headless`, `outputDir`, `budgetMetric`, optional shared **defaults** (selectors and timeouts), optional shared **`defaults.endpointWatch`** (substring or regex per rule), then each **page**: `url`, `maxReadyMs`, selector overrides, optional **`pages[].endpointWatch`**, and optional timeouts. For an **existing** file, it appends new `pages` only; you can still add page-level `endpointWatch` for those new pages.
+For a **new** file, it asks for `baseURL`, optional `storageState`, optional `localStorageState` (flat JSON path), `runs`, `headless`, `outputDir`, `budgetMetric`, optional shared **defaults** (selectors and timeouts), optional shared **`defaults.endpointWatch`** (substring or regex per rule), then each **page**: `url`, `maxReadyMs`, selector overrides, optional **`pages[].endpointWatch`**, and optional timeouts. For an **existing** file, it appends new `pages` only; you can still add page-level `endpointWatch` for those new pages.
 
 ## CLI
 

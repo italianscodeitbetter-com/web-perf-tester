@@ -39,6 +39,11 @@ export interface PerfPageConfig {
 export interface PerfConfig {
   baseURL: string;
   storageState?: string;
+  /**
+   * Path to flat JSON `{ "key": "value" }` injected into `localStorage` before each document loads.
+   * Not Playwright `storageState` format; use alongside or instead of `storageState`.
+   */
+  localStorageState?: string;
   runs?: number;
   headless?: boolean;
   outputDir?: string;

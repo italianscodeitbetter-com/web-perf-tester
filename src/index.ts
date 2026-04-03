@@ -6,6 +6,10 @@ export {
   resolveFromConfigDir,
 } from "./config.js";
 export type { MergedPageOptions } from "./config.js";
+export {
+  applyLocalStorageInitScript,
+  loadLocalStoragePairsFromFile,
+} from "./local-storage-inject.js";
 export { evaluateEndpointRules } from "./endpoint-eval.js";
 export {
   getResponseSizeBytes,

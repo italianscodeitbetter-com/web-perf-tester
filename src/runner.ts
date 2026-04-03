@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { performance } from "node:perf_hooks";
 import { chromium, type Page } from "playwright";
+import { applyLocalStorageInitScript } from "./local-storage-inject.js";
 import { createEndpointWatchCollector } from "./endpoint-watch.js";
 import type {
   NavigationMetrics,
@@ -15,6 +16,8 @@ export type MeasureRunOptions = {
   baseURL: string;
   gotoURL: string;
   storageState?: string;
+  /** Absolute path to flat JSON for localStorage injection. */
+  localStorageState?: string;
   headless: boolean;
   readyVisible: string;
   readyHidden: string;
@@ -158,6 +161,7 @@ export async function measureRun(
     baseURL,
     gotoURL,
     storageState,
+    localStorageState,
     headless,
     readyVisible,
     readyHidden,
@@ -183,6 +187,10 @@ export async function measureRun(
     contextOptions.storageState = storageState;
   }
   const context = await browser.newContext(contextOptions);
+
+  if (localStorageState) {
+    await applyLocalStorageInitScript(context, localStorageState);
+  }
 
   await context.tracing.start({ screenshots: true, snapshots: true });
 
