@@ -60,10 +60,7 @@ async function collectEndpointWatchRules(
   let more = true;
   while (more) {
     const rule: JsonEndpointRule = {};
-    const matchType = await ask(
-      "Match type: substring or regex",
-      "substring",
-    );
+    const matchType = await ask("Match type: substring or regex", "substring");
     const useRegex = matchType.toLowerCase().startsWith("r");
     if (useRegex) {
       console.log(
@@ -155,7 +152,9 @@ async function main() {
   };
 
   try {
-    console.log("\nicib-perf-add-check — add page checks to perf.config.json\n");
+    console.log(
+      "\nicib-perf-add-check — add page checks to perf.config.json\n",
+    );
 
     const exists = fs.existsSync(abs);
     let mode: "new" | "merge";
@@ -197,7 +196,9 @@ async function main() {
         throw new Error(`${abs} must have a "pages" array.`);
       }
       config = { ...raw } as JsonConfig;
-      config.pages = [...(raw.pages as unknown[]).filter(isRecord)] as JsonPage[];
+      config.pages = [
+        ...(raw.pages as unknown[]).filter(isRecord),
+      ] as JsonPage[];
     } else {
       config = {};
       console.log("--- New config: global settings ---\n");
@@ -219,11 +220,13 @@ async function main() {
       config.headless = await confirm("Run headless?", true);
       config.outputDir = await ask("outputDir", ".webperf");
       const metric = await ask("budgetMetric: median or p95", "median");
-      config.budgetMetric =
-        metric === "p95" ? "p95" : "median";
+      config.budgetMetric = metric === "p95" ? "p95" : "median";
 
       if (
-        await confirm("Set shared defaults (readyVisible / readyHidden / timeouts)?", true)
+        await confirm(
+          "Set shared defaults (readyVisible / readyHidden / timeouts)?",
+          true,
+        )
       ) {
         const defaults: JsonDefaults = {};
         defaults.readyVisible = await ask(
@@ -286,9 +289,7 @@ async function main() {
           4000,
         );
 
-        if (
-          await confirm("Override readyVisible for this page only?", false)
-        ) {
+        if (await confirm("Override readyVisible for this page only?", false)) {
           page.readyVisible = await ask("readyVisible", "");
           if (!page.readyVisible) delete page.readyVisible;
         }
@@ -323,7 +324,9 @@ async function main() {
 
         pruneUndefined(page);
         newPages.push(page);
-        console.log(`\nQueued page: ${page.url} (budget ${page.maxReadyMs} ms)\n`);
+        console.log(
+          `\nQueued page: ${page.url} (budget ${page.maxReadyMs} ms)\n`,
+        );
       }
 
       addMore = await confirm("Add another page check?", false);

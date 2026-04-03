@@ -99,7 +99,10 @@ function parseDefaults(raw: unknown, ctx: string): PerfDefaults | undefined {
       false,
       `${ctx}.defaults`,
     ),
-    endpointWatch: parseEndpointWatchArray(raw.endpointWatch, `${ctx}.defaults`),
+    endpointWatch: parseEndpointWatchArray(
+      raw.endpointWatch,
+      `${ctx}.defaults`,
+    ),
   };
 }
 
@@ -113,7 +116,10 @@ function parseEndpointWatchRule(
   const includes = expectString(raw, "urlIncludes", false, c);
   const regex = expectString(raw, "urlRegex", false, c);
   const flags = expectString(raw, "urlRegexFlags", false, c) ?? "";
-  if ((includes !== undefined && regex !== undefined) || (!includes && !regex)) {
+  if (
+    (includes !== undefined && regex !== undefined) ||
+    (!includes && !regex)
+  ) {
     throw new Error(
       `${c}: exactly one of "urlIncludes" or "urlRegex" is required`,
     );
@@ -132,10 +138,7 @@ function parseEndpointWatchRule(
   const method = expectString(raw, "method", false, c) ?? "GET";
   const maxCalls = expectNumber(raw, "maxCalls", false, c);
   const maxTotal = expectNumber(raw, "maxTotalResponseBytes", false, c);
-  if (
-    maxCalls !== undefined &&
-    (!Number.isInteger(maxCalls) || maxCalls < 0)
-  ) {
+  if (maxCalls !== undefined && (!Number.isInteger(maxCalls) || maxCalls < 0)) {
     throw new Error(`${c}.maxCalls must be a non-negative integer`);
   }
   if (maxTotal !== undefined && maxTotal < 0) {
@@ -222,19 +225,9 @@ function parsePage(raw: unknown, index: number): PerfPageConfig {
     maxReadyMs: maxReadyMs!,
     readyVisible: expectString(raw, "readyVisible", false, ctx),
     readyHidden: expectString(raw, "readyHidden", false, ctx),
-    navigationTimeoutMs: expectNumber(
-      raw,
-      "navigationTimeoutMs",
-      false,
-      ctx,
-    ),
+    navigationTimeoutMs: expectNumber(raw, "navigationTimeoutMs", false, ctx),
     readyTimeoutMs: expectNumber(raw, "readyTimeoutMs", false, ctx),
-    readyHiddenTimeoutMs: expectNumber(
-      raw,
-      "readyHiddenTimeoutMs",
-      false,
-      ctx,
-    ),
+    readyHiddenTimeoutMs: expectNumber(raw, "readyHiddenTimeoutMs", false, ctx),
     endpointWatch: parseEndpointWatchArray(raw.endpointWatch, ctx),
   };
 }
@@ -244,7 +237,7 @@ function parseRoot(raw: unknown): PerfConfig {
   const baseURL = expectString(raw, "baseURL", true, "config");
   const pagesRaw = raw.pages;
   if (!Array.isArray(pagesRaw) || pagesRaw.length === 0) {
-    throw new Error('config.pages must be a non-empty array');
+    throw new Error("config.pages must be a non-empty array");
   }
   const pages = pagesRaw.map((p, i) => parsePage(p, i));
   return {
@@ -282,10 +275,7 @@ export function loadConfig(configPath: string): PerfConfig {
   }
   const config = parseRoot(parsed);
   const storageState = resolveFromConfigDir(abs, config.storageState);
-  const outputDir = resolveFromConfigDir(
-    abs,
-    config.outputDir ?? ".webperf",
-  )!;
+  const outputDir = resolveFromConfigDir(abs, config.outputDir ?? ".webperf")!;
 
   if (storageState !== undefined && !fs.existsSync(storageState)) {
     throw new Error(`storageState file not found: ${storageState}`);
@@ -314,15 +304,11 @@ export function mergePageOptions(
   page: PerfPageConfig,
 ): MergedPageOptions {
   const readyVisible =
-    page.readyVisible ??
-    defaults?.readyVisible ??
-    DEFAULT_READY_VISIBLE;
+    page.readyVisible ?? defaults?.readyVisible ?? DEFAULT_READY_VISIBLE;
   const readyHiddenRaw =
     page.readyHidden ?? defaults?.readyHidden ?? DEFAULT_READY_HIDDEN;
   const skipReadyHidden = readyHiddenRaw.trim() === "";
-  const readyHidden = skipReadyHidden
-    ? DEFAULT_READY_HIDDEN
-    : readyHiddenRaw;
+  const readyHidden = skipReadyHidden ? DEFAULT_READY_HIDDEN : readyHiddenRaw;
 
   return {
     url: page.url,
@@ -331,14 +317,9 @@ export function mergePageOptions(
     readyHidden,
     skipReadyHidden,
     navigationTimeoutMs:
-      page.navigationTimeoutMs ??
-      defaults?.navigationTimeoutMs ??
-      60_000,
-    readyTimeoutMs:
-      page.readyTimeoutMs ?? defaults?.readyTimeoutMs ?? 60_000,
+      page.navigationTimeoutMs ?? defaults?.navigationTimeoutMs ?? 60_000,
+    readyTimeoutMs: page.readyTimeoutMs ?? defaults?.readyTimeoutMs ?? 60_000,
     readyHiddenTimeoutMs:
-      page.readyHiddenTimeoutMs ??
-      defaults?.readyHiddenTimeoutMs ??
-      15_000,
+      page.readyHiddenTimeoutMs ?? defaults?.readyHiddenTimeoutMs ?? 15_000,
   };
 }

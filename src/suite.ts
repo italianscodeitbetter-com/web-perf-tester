@@ -63,8 +63,7 @@ export async function runSuite(
         traceDir,
         screenshotDir,
         filePrefix,
-        endpointWatch:
-          endpointRules.length > 0 ? endpointRules : undefined,
+        endpointWatch: endpointRules.length > 0 ? endpointRules : undefined,
       });
       results.push(result);
       const epHint =

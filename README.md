@@ -38,9 +38,7 @@ Paths in the JSON are resolved **relative to the config file’s directory** unl
     "readyVisible": "[data-test=main-chart]",
     "readyHidden": "[data-test=loading]"
   },
-  "pages": [
-    { "url": "/dashboard/sales", "maxReadyMs": 4000 }
-  ]
+  "pages": [{ "url": "/dashboard/sales", "maxReadyMs": 4000 }]
 }
 ```
 
@@ -54,7 +52,7 @@ Paths in the JSON are resolved **relative to the config file’s directory** unl
 
 Define rules on **`defaults.endpointWatch`** (applies to every page that does **not** set its own `endpointWatch`) and/or on **`pages[].endpointWatch`** (replaces defaults for that page only). Each rule must have **exactly one** of:
 
-- **`urlIncludes`** — substring match on the full URL (`https://…` including query), or  
+- **`urlIncludes`** — substring match on the full URL (`https://…` including query), or
 - **`urlRegex`** — regex **pattern** only (not `/…/flags`), with optional **`urlRegexFlags`** (e.g. `"i"`).
 
 Optional: **`id`** (defaults to the include string or regex), **`method`** (default `GET`), **`maxCalls`** (fail a run if more matching responses than this), **`maxTotalResponseBytes`** (fail a run if the sum of body sizes for matching responses exceeds this). Size uses `Content-Length` when valid, otherwise reads the response body (for matched calls only).
@@ -80,11 +78,11 @@ For a **new** file, it asks for `baseURL`, optional `storageState`, `runs`, `hea
 npx icib-perf-web-tester --config perf.config.json
 ```
 
-| Option | Description |
-|--------|-------------|
-| `-c`, `--config <path>` | Config file (default: `perf.config.json`) |
-| `-o`, `--output-dir <path>` | Override `outputDir` from config |
-| `-h`, `--help` | Help |
+| Option                      | Description                               |
+| --------------------------- | ----------------------------------------- |
+| `-c`, `--config <path>`     | Config file (default: `perf.config.json`) |
+| `-o`, `--output-dir <path>` | Override `outputDir` from config          |
+| `-h`, `--help`              | Help                                      |
 
 ### Exit codes
 

@@ -8,13 +8,13 @@ Human-oriented prose also lives in [README.md](./README.md); content overlaps by
 
 ## 1. What this is
 
-| Fact | Detail |
-|------|--------|
-| **Runtime** | **Node.js 18+** only. |
-| **Engine** | [Playwright](https://playwright.dev) **Chromium** (install browsers separately). |
+| Fact        | Detail                                                                                                                                                                                                                                |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Runtime** | **Node.js 18+** only.                                                                                                                                                                                                                 |
+| **Engine**  | [Playwright](https://playwright.dev) **Chromium** (install browsers separately).                                                                                                                                                      |
 | **Purpose** | For each configured **page**: open URL, wait until UI is **ready** (selectors), repeat **N runs**, record metrics; optionally **count API responses** matching rules and sum **response sizes**; **fail CI** if budgets are exceeded. |
-| **Config** | One JSON file (e.g. `perf.config.json`). Paths inside it resolve **relative to that file’s directory** unless absolute. |
-| **Not** | Not a browser npm import, not embedded in React/Vite bundles, not a load-testing replacement for k6. |
+| **Config**  | One JSON file (e.g. `perf.config.json`). Paths inside it resolve **relative to that file’s directory** unless absolute.                                                                                                               |
+| **Not**     | Not a browser npm import, not embedded in React/Vite bundles, not a load-testing replacement for k6.                                                                                                                                  |
 
 ---
 
@@ -32,10 +32,10 @@ npx playwright install chromium
 
 ## 3. Binaries (npm exposes two commands)
 
-| Binary | Purpose |
-|--------|---------|
-| `icib-perf-web-tester` | Run the full suite from JSON config; writes artifacts; sets exit code. |
-| `icib-perf-add-check` | Interactive wizard: create/merge config, add pages, optional `endpointWatch`. |
+| Binary                 | Purpose                                                                       |
+| ---------------------- | ----------------------------------------------------------------------------- |
+| `icib-perf-web-tester` | Run the full suite from JSON config; writes artifacts; sets exit code.        |
+| `icib-perf-add-check`  | Interactive wizard: create/merge config, add pages, optional `endpointWatch`. |
 
 Invoke via `npx <name>` or npm scripts.
 
@@ -47,18 +47,18 @@ Invoke via `npx <name>` or npm scripts.
 icib-perf-web-tester [options]
 ```
 
-| Option | Meaning |
-|--------|---------|
-| `-c`, `--config <path>` | Config JSON path. Default: `perf.config.json` (relative to **current working directory** when you start the process). |
-| `-o`, `--output-dir <path>` | Override **`outputDir`** from config. Resolved with `path.resolve()` from cwd. |
-| `-h`, `--help` | Print help and exit 0. |
+| Option                      | Meaning                                                                                                               |
+| --------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| `-c`, `--config <path>`     | Config JSON path. Default: `perf.config.json` (relative to **current working directory** when you start the process). |
+| `-o`, `--output-dir <path>` | Override **`outputDir`** from config. Resolved with `path.resolve()` from cwd.                                        |
+| `-h`, `--help`              | Print help and exit 0.                                                                                                |
 
 **Exit codes**
 
-| Code | Meaning |
-|------|---------|
-| `0` | Every page: **timing** OK **and** all **endpointWatch** rules OK (or no endpoint rules). |
-| `1` | Invalid/missing config, missing `storageState` file, or any page fails **timing** or **endpoint** budgets. |
+| Code | Meaning                                                                                                    |
+| ---- | ---------------------------------------------------------------------------------------------------------- |
+| `0`  | Every page: **timing** OK **and** all **endpointWatch** rules OK (or no endpoint rules).                   |
+| `1`  | Invalid/missing config, missing `storageState` file, or any page fails **timing** or **endpoint** budgets. |
 
 ---
 
@@ -68,10 +68,10 @@ icib-perf-web-tester [options]
 icib-perf-add-check [options]
 ```
 
-| Option | Meaning |
-|--------|---------|
+| Option                  | Meaning                                                                                             |
+| ----------------------- | --------------------------------------------------------------------------------------------------- |
 | `-c`, `--config <path>` | Target JSON file (default `perf.config.json`). Written relative to **cwd** unless path is absolute. |
-| `-h`, `--help` | Help. |
+| `-h`, `--help`          | Help.                                                                                               |
 
 **Behavior (summary)**
 
@@ -85,16 +85,16 @@ icib-perf-add-check [options]
 
 All keys below are for the **root** of the JSON file.
 
-| Key | Required | Type | Default / notes |
-|-----|----------|------|------------------|
-| `baseURL` | **yes** | string | Playwright `baseURL`. Used with **relative** `pages[].url` (e.g. `/dash` → `baseURL + /dash`). |
-| `pages` | **yes** | array | Non-empty. Each item is a **page** object (section 8). |
-| `storageState` | no | string | Path to Playwright storage state JSON (cookies/session). Resolved **relative to config file dir**. File **must exist** or `loadConfig` throws. |
-| `runs` | no | number (integer ≥ 1) | Repetitions per page. Default **5**. |
-| `headless` | no | boolean | Default **true**. |
-| `outputDir` | no | string | Artifacts root. Default **`.webperf`**. Resolved **relative to config file dir**. |
-| `budgetMetric` | no | `"median"` \| `"p95"` | Stat compared to `pages[].maxReadyMs`. Default **`median`**. |
-| `defaults` | no | object | Shared **defaults** object (section 7). |
+| Key            | Required | Type                  | Default / notes                                                                                                                                |
+| -------------- | -------- | --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| `baseURL`      | **yes**  | string                | Playwright `baseURL`. Used with **relative** `pages[].url` (e.g. `/dash` → `baseURL + /dash`).                                                 |
+| `pages`        | **yes**  | array                 | Non-empty. Each item is a **page** object (section 8).                                                                                         |
+| `storageState` | no       | string                | Path to Playwright storage state JSON (cookies/session). Resolved **relative to config file dir**. File **must exist** or `loadConfig` throws. |
+| `runs`         | no       | number (integer ≥ 1)  | Repetitions per page. Default **5**.                                                                                                           |
+| `headless`     | no       | boolean               | Default **true**.                                                                                                                              |
+| `outputDir`    | no       | string                | Artifacts root. Default **`.webperf`**. Resolved **relative to config file dir**.                                                              |
+| `budgetMetric` | no       | `"median"` \| `"p95"` | Stat compared to `pages[].maxReadyMs`. Default **`median`**.                                                                                   |
+| `defaults`     | no       | object                | Shared **defaults** object (section 7).                                                                                                        |
 
 ---
 
@@ -102,29 +102,29 @@ All keys below are for the **root** of the JSON file.
 
 Applied to every **page** that does **not** override a given field (and used for endpoint rules per merge rules in section 9).
 
-| Key | Type | Default when omitted |
-|-----|------|----------------------|
-| `readyVisible` | string | `"[data-test=main-chart]"` |
-| `readyHidden` | string | `"[data-test=loading]"`. Use **`""`** to **skip** the “wait until hidden” step globally. |
-| `navigationTimeoutMs` | number | `60000` — `page.goto` timeout. |
-| `readyTimeoutMs` | number | `60000` — wait for `readyVisible`. |
-| `readyHiddenTimeoutMs` | number | `15000` — wait for `readyHidden` hidden (ignored if hidden step skipped). |
-| `endpointWatch` | array | No shared endpoint rules. Each element: **endpoint rule** (section 10). |
+| Key                    | Type   | Default when omitted                                                                     |
+| ---------------------- | ------ | ---------------------------------------------------------------------------------------- |
+| `readyVisible`         | string | `"[data-test=main-chart]"`                                                               |
+| `readyHidden`          | string | `"[data-test=loading]"`. Use **`""`** to **skip** the “wait until hidden” step globally. |
+| `navigationTimeoutMs`  | number | `60000` — `page.goto` timeout.                                                           |
+| `readyTimeoutMs`       | number | `60000` — wait for `readyVisible`.                                                       |
+| `readyHiddenTimeoutMs` | number | `15000` — wait for `readyHidden` hidden (ignored if hidden step skipped).                |
+| `endpointWatch`        | array  | No shared endpoint rules. Each element: **endpoint rule** (section 10).                  |
 
 ---
 
 ## 8. JSON: each `pages[]` item (`PerfPageConfig`)
 
-| Key | Required | Type | Notes |
-|-----|----------|------|--------|
-| `url` | **yes** | string | Relative to `baseURL` or absolute `http(s)://…`. |
-| `maxReadyMs` | **yes** | number (≥ 0) | Budget for **ready time** (ms). Compared to **median** or **p95** of `readyMs` over runs (see `budgetMetric`). |
-| `readyVisible` | no | string | Overrides `defaults.readyVisible` for this page. |
-| `readyHidden` | no | string | Overrides `defaults.readyHidden`. **`""`** skips hidden wait for this page. |
-| `navigationTimeoutMs` | no | number | Overrides default goto timeout. |
-| `readyTimeoutMs` | no | number | Overrides visible selector timeout. |
-| `readyHiddenTimeoutMs` | no | number | Overrides hidden selector timeout. |
-| `endpointWatch` | no | array | **Endpoint rules** (section 10). See **merge semantics** (section 9). |
+| Key                    | Required | Type         | Notes                                                                                                          |
+| ---------------------- | -------- | ------------ | -------------------------------------------------------------------------------------------------------------- |
+| `url`                  | **yes**  | string       | Relative to `baseURL` or absolute `http(s)://…`.                                                               |
+| `maxReadyMs`           | **yes**  | number (≥ 0) | Budget for **ready time** (ms). Compared to **median** or **p95** of `readyMs` over runs (see `budgetMetric`). |
+| `readyVisible`         | no       | string       | Overrides `defaults.readyVisible` for this page.                                                               |
+| `readyHidden`          | no       | string       | Overrides `defaults.readyHidden`. **`""`** skips hidden wait for this page.                                    |
+| `navigationTimeoutMs`  | no       | number       | Overrides default goto timeout.                                                                                |
+| `readyTimeoutMs`       | no       | number       | Overrides visible selector timeout.                                                                            |
+| `readyHiddenTimeoutMs` | no       | number       | Overrides hidden selector timeout.                                                                             |
+| `endpointWatch`        | no       | array        | **Endpoint rules** (section 10). See **merge semantics** (section 9).                                          |
 
 ---
 
@@ -140,15 +140,15 @@ Applied to every **page** that does **not** override a given field (and used for
 
 **Exactly one** of `urlIncludes` **or** `urlRegex` is required. Having both or neither → **config error**.
 
-| Key | Required | Type | Notes |
-|-----|----------|------|--------|
-| `urlIncludes` | xor | string | Substring match on **full** request URL Playwright sees (`https://host/path?query`). |
-| `urlRegex` | xor | string | Regex **pattern only** (no `/…/flags`). Tested against the **full** URL. |
-| `urlRegexFlags` | no | string | e.g. `"i"`. Only meaningful with `urlRegex`. |
-| `id` | no | string | Label in output. Defaults to `urlIncludes`, else `urlRegex`, else `rule-{index}`. |
-| `method` | no | string | Default **`GET`**. Compared **case-insensitively** to the request method. |
-| `maxCalls` | no | integer ≥ 0 | If set: any **single run** with **more** matching responses **fails** that rule. |
-| `maxTotalResponseBytes` | no | number ≥ 0 | If set: any **single run** where the **sum** of response body sizes for matches **exceeds** this **fails** that rule. |
+| Key                     | Required | Type        | Notes                                                                                                                 |
+| ----------------------- | -------- | ----------- | --------------------------------------------------------------------------------------------------------------------- |
+| `urlIncludes`           | xor      | string      | Substring match on **full** request URL Playwright sees (`https://host/path?query`).                                  |
+| `urlRegex`              | xor      | string      | Regex **pattern only** (no `/…/flags`). Tested against the **full** URL.                                              |
+| `urlRegexFlags`         | no       | string      | e.g. `"i"`. Only meaningful with `urlRegex`.                                                                          |
+| `id`                    | no       | string      | Label in output. Defaults to `urlIncludes`, else `urlRegex`, else `rule-{index}`.                                     |
+| `method`                | no       | string      | Default **`GET`**. Compared **case-insensitively** to the request method.                                             |
+| `maxCalls`              | no       | integer ≥ 0 | If set: any **single run** with **more** matching responses **fails** that rule.                                      |
+| `maxTotalResponseBytes` | no       | number ≥ 0  | If set: any **single run** where the **sum** of response body sizes for matches **exceeds** this **fails** that rule. |
 
 **Size measurement:** uses `Content-Length` when valid; otherwise reads **`response.body()`** for that response (only for **matched** URLs).
 
@@ -197,11 +197,11 @@ Applied to every **page** that does **not** override a given field (and used for
 
 ## 13. Artifacts (under `outputDir`)
 
-| Path | Content |
-|------|---------|
+| Path           | Content                                                                                                                                                                                               |
+| -------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `results.json` | Full **`SuiteSummary`**: `budgetMetric`, `outputDir`, `resultFile`, `passed`, `pages[]` each with `timingPassed`, `endpointWatchPassed`, `passed`, stats, `endpointRules`, `results` (`RunResult[]`). |
-| `screenshots/` | PNG per page run. |
-| `traces/` | Playwright trace zip per page run. |
+| `screenshots/` | PNG per page run.                                                                                                                                                                                     |
+| `traces/`      | Playwright trace zip per page run.                                                                                                                                                                    |
 
 Treat `outputDir` as **disposable** in CI; add to `.gitignore` if local.
 
@@ -225,18 +225,18 @@ process.exitCode = summary.passed ? 0 : 1;
 
 ### 14.2 Exports (functions)
 
-| Export | Role |
-|--------|------|
-| `loadConfig(path)` | Read + validate JSON; resolve paths; return `PerfConfig`. |
-| `runSuite(config, options?)` | Run all pages; write `results.json`; return `SuiteSummary`. |
-| `measureRun(options)` | Single Playwright measurement; lower-level (see `MeasureRunOptions` in types). |
-| `mergePageOptions(defaults, page)` | Resolved selector/timeouts for a page. |
-| `mergeEndpointWatch(defaults, page)` | Resolved **`ParsedEndpointWatchRule[]`** for a page. |
-| `compileEndpointWatchRules(rules)` | Attach `compiledRegex` from JSON rules. |
-| `resolveFromConfigDir(configPath, p)` | Resolve a path next to the config file. |
-| `evaluateEndpointRules(rules, results)` | Compute `EndpointRuleSummary[]` from `RunResult[]`. |
-| `percentile(values, p)` | Stats helper (0–100). |
-| `methodsMatch`, `urlMatchesRule`, `getResponseSizeBytes` | Endpoint matching / sizing helpers (tests or custom tooling). |
+| Export                                                   | Role                                                                           |
+| -------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| `loadConfig(path)`                                       | Read + validate JSON; resolve paths; return `PerfConfig`.                      |
+| `runSuite(config, options?)`                             | Run all pages; write `results.json`; return `SuiteSummary`.                    |
+| `measureRun(options)`                                    | Single Playwright measurement; lower-level (see `MeasureRunOptions` in types). |
+| `mergePageOptions(defaults, page)`                       | Resolved selector/timeouts for a page.                                         |
+| `mergeEndpointWatch(defaults, page)`                     | Resolved **`ParsedEndpointWatchRule[]`** for a page.                           |
+| `compileEndpointWatchRules(rules)`                       | Attach `compiledRegex` from JSON rules.                                        |
+| `resolveFromConfigDir(configPath, p)`                    | Resolve a path next to the config file.                                        |
+| `evaluateEndpointRules(rules, results)`                  | Compute `EndpointRuleSummary[]` from `RunResult[]`.                            |
+| `percentile(values, p)`                                  | Stats helper (0–100).                                                          |
+| `methodsMatch`, `urlMatchesRule`, `getResponseSizeBytes` | Endpoint matching / sizing helpers (tests or custom tooling).                  |
 
 ### 14.3 Exports (types)
 
@@ -257,14 +257,14 @@ process.exitCode = summary.passed ? 0 : 1;
 
 ## 16. Troubleshooting (agents)
 
-| Symptom | Likely cause |
-|---------|----------------|
-| `storageState file not found` | Path in JSON wrong; remember resolution is **relative to config file**, not cwd. |
-| `exactly one of urlIncludes or urlRegex` | Invalid `endpointWatch` object. |
-| `invalid urlRegex` | Bad pattern/flags; fix escaping in JSON. |
-| Timeout on `readyVisible` | Selector wrong, app slow, or `baseURL`/`url` wrong. |
-| Endpoint count 0 | Pattern does not match **full** URL; method mismatch; requests happen before/after measurement window. |
-| CI: browser missing | Run `npx playwright install chromium` in CI. |
+| Symptom                                  | Likely cause                                                                                           |
+| ---------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| `storageState file not found`            | Path in JSON wrong; remember resolution is **relative to config file**, not cwd.                       |
+| `exactly one of urlIncludes or urlRegex` | Invalid `endpointWatch` object.                                                                        |
+| `invalid urlRegex`                       | Bad pattern/flags; fix escaping in JSON.                                                               |
+| Timeout on `readyVisible`                | Selector wrong, app slow, or `baseURL`/`url` wrong.                                                    |
+| Endpoint count 0                         | Pattern does not match **full** URL; method mismatch; requests happen before/after measurement window. |
+| CI: browser missing                      | Run `npx playwright install chromium` in CI.                                                           |
 
 ---
 
@@ -281,9 +281,7 @@ process.exitCode = summary.passed ? 0 : 1;
     "readyVisible": "[data-testid=app-ready]",
     "readyHidden": ""
   },
-  "pages": [
-    { "url": "/dashboard", "maxReadyMs": 5000 }
-  ]
+  "pages": [{ "url": "/dashboard", "maxReadyMs": 5000 }]
 }
 ```
 
