@@ -10,13 +10,31 @@
     "readyHidden": "[data-test=loading]",
     "navigationTimeoutMs": 60000,
     "readyTimeoutMs": 60000,
-    "readyHiddenTimeoutMs": 15000
+    "readyHiddenTimeoutMs": 15000,
+    "endpointWatch": [
+      {
+        "id": "salesSummary",
+        "urlIncludes": "/api/dashboard/sales-summary",
+        "method": "GET",
+        "maxCalls": 2
+      }
+    ]
   },
   "pages": [
     {
       "url": "/dashboard/sales",
       "maxReadyMs": 4000,
-      "readyVisible": "[data-test=sales-chart]"
+      "readyVisible": "[data-test=sales-chart]",
+      "endpointWatch": [
+        {
+          "id": "aggregateApi",
+          "urlRegex": "^https://[^/]+/api/sales/aggregate(?:\\?.*)?$",
+          "urlRegexFlags": "i",
+          "method": "GET",
+          "maxCalls": 1,
+          "maxTotalResponseBytes": 500000
+        }
+      ]
     }
   ]
 }

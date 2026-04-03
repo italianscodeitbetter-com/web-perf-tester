@@ -17,6 +17,7 @@
   "files": [
     "dist",
     "README.md",
+    "AGENTS.md",
     "LICENSE",
     "perf.config.example.json"
   ],
@@ -31,7 +32,9 @@
     "prepublishOnly": "npm run build",
     "perf": "node dist/cli.js",
     "perf:add-check": "node dist/init-check.js",
-    "test": "echo \"No tests yet\" && exit 0"
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:integration": "vitest run --config vitest.integration.config.ts"
   },
   "peerDependencies": {
     "playwright": ">=1.40.0"
@@ -40,7 +43,8 @@
     "@types/node": "^22.10.2",
     "playwright": "^1.49.0",
     "tsup": "^8.3.5",
-    "typescript": "^5.7.2"
+    "typescript": "^5.7.2",
+    "vitest": "^4.1.2"
   },
   "keywords": [
     "playwright",

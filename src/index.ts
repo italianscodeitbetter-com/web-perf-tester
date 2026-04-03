@@ -1,12 +1,29 @@
-export { loadConfig, mergePageOptions, resolveFromConfigDir } from "./config.js";
+export {
+  compileEndpointWatchRules,
+  loadConfig,
+  mergeEndpointWatch,
+  mergePageOptions,
+  resolveFromConfigDir,
+} from "./config.js";
 export type { MergedPageOptions } from "./config.js";
+export { evaluateEndpointRules } from "./endpoint-eval.js";
+export {
+  getResponseSizeBytes,
+  methodsMatch,
+  urlMatchesRule,
+} from "./endpoint-watch.js";
+export { percentile } from "./stats.js";
 export { measureRun } from "./runner.js";
 export type { MeasureRunOptions } from "./runner.js";
 export { runSuite } from "./suite.js";
 export type { RunSuiteOptions } from "./suite.js";
 export type {
   BudgetMetric,
+  EndpointRuleSummary,
+  EndpointWatchRule,
+  EndpointWatchRunStats,
   NavigationMetrics,
+  ParsedEndpointWatchRule,
   PerfConfig,
   PerfDefaults,
   PerfPageConfig,

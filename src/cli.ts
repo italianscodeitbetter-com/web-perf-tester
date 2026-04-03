@@ -39,8 +39,8 @@ Options:
   -h, --help              Show this message
 
 Exit codes:
-  0  All pages meet their maxReadyMs budget (see budgetMetric in config)
-  1  Config/load error, or at least one page over budget
+  0  All pages pass timing (maxReadyMs) and endpointWatch budgets
+  1  Config/load error, or timing or endpoint budget failure
 `);
 }
 
@@ -57,9 +57,23 @@ async function main() {
   console.log(`Results:   ${summary.resultFile}`);
   for (const p of summary.pages) {
     const status = p.passed ? "PASS" : "FAIL";
+    const timeOk = p.timingPassed ? "ok" : "FAIL";
+    const epOk =
+      p.endpointRules.length === 0
+        ? "n/a"
+        : p.endpointWatchPassed
+          ? "ok"
+          : "FAIL";
     console.log(
-      `  [${status}] ${p.url} — ${summary.budgetMetric}=${Math.round(p.metricValueMs)} ms (budget ${p.maxReadyMs} ms)`,
+      `  [${status}] ${p.url} — time ${timeOk} (${summary.budgetMetric}=${Math.round(p.metricValueMs)} ms / ${p.maxReadyMs} ms) | endpoints ${epOk}`,
     );
+    for (const r of p.endpointRules) {
+      if (!r.passed) {
+        console.log(
+          `      rule ${JSON.stringify(r.id)}: maxCalls=${r.maxCallCountInAnyRun}${r.maxCalls !== undefined ? ` (budget ${r.maxCalls})` : ""} maxBytes=${r.maxTotalBytesInAnyRun}${r.maxTotalResponseBytes !== undefined ? ` (budget ${r.maxTotalResponseBytes})` : ""} failedRuns calls=${JSON.stringify(r.failedRunsMaxCalls)} bytes=${JSON.stringify(r.failedRunsMaxBytes)}`,
+        );
+      }
+    }
   }
 
   if (!summary.passed) {

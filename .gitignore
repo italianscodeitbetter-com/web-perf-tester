@@ -3,3 +3,4 @@ dist/
 .webperf/
 *.log
 .DS_Store
+auth.json

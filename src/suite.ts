@@ -2,18 +2,10 @@ import fs from "node:fs";
 import path from "node:path";
 import type { PerfConfig } from "./types.js";
 import type { SuiteSummary } from "./types.js";
-import { mergePageOptions } from "./config.js";
+import { evaluateEndpointRules } from "./endpoint-eval.js";
+import { mergeEndpointWatch, mergePageOptions } from "./config.js";
 import { measureRun } from "./runner.js";
-
-function percentile(values: number[], p: number): number {
-  if (!values.length) return 0;
-  const index = (p / 100) * (values.length - 1);
-  const lower = Math.floor(index);
-  const upper = Math.ceil(index);
-  if (lower === upper) return values[lower]!;
-  const weight = index - lower;
-  return values[lower]! * (1 - weight) + values[upper]! * weight;
-}
+import { percentile } from "./stats.js";
 
 function resolveGotoURL(baseURL: string, pageUrl: string): string {
   if (/^https?:\/\//i.test(pageUrl)) {
@@ -50,6 +42,7 @@ export async function runSuite(
   for (let pi = 0; pi < config.pages.length; pi++) {
     const pageCfg = config.pages[pi]!;
     const merged = mergePageOptions(config.defaults, pageCfg);
+    const endpointRules = mergeEndpointWatch(config.defaults, pageCfg);
     const gotoURL = resolveGotoURL(config.baseURL, merged.url);
     const filePrefix = `page-${pi}`;
 
@@ -70,10 +63,16 @@ export async function runSuite(
         traceDir,
         screenshotDir,
         filePrefix,
+        endpointWatch:
+          endpointRules.length > 0 ? endpointRules : undefined,
       });
       results.push(result);
+      const epHint =
+        endpointRules.length > 0
+          ? ` | endpoints: ${result.endpointWatch.map((e) => `${e.id}=${e.callCount}`).join(", ")}`
+          : "";
       console.log(
-        `[${pi + 1}/${config.pages.length}] Run ${i}/${runs}: ${gotoURL} ready in ${Math.round(result.readyMs)} ms`,
+        `[${pi + 1}/${config.pages.length}] Run ${i}/${runs}: ${gotoURL} ready in ${Math.round(result.readyMs)} ms${epHint}`,
       );
     }
 
@@ -81,19 +80,25 @@ export async function runSuite(
     const medianReadyMs = percentile(readyValues, 50);
     const p95ReadyMs = percentile(readyValues, 95);
     const metricValueMs = budgetMetric === "p95" ? p95ReadyMs : medianReadyMs;
-    const passed = metricValueMs <= merged.maxReadyMs;
+    const timingPassed = metricValueMs <= merged.maxReadyMs;
+    const endpointRuleSummaries = evaluateEndpointRules(endpointRules, results);
+    const endpointWatchPassed = endpointRuleSummaries.every((e) => e.passed);
+    const passed = timingPassed && endpointWatchPassed;
 
     pageSummaries.push({
       url: gotoURL,
       maxReadyMs: merged.maxReadyMs,
       budgetMetric,
       metricValueMs,
+      timingPassed,
+      endpointWatchPassed,
       passed,
       runs,
       medianReadyMs,
       minReadyMs: readyValues[0] ?? 0,
       maxObservedReadyMs: readyValues[readyValues.length - 1] ?? 0,
       p95ReadyMs,
+      endpointRules: endpointRuleSummaries,
       results,
     });
   }

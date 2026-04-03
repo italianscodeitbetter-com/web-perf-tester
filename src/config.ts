@@ -2,6 +2,8 @@ import fs from "node:fs";
 import path from "node:path";
 import type {
   BudgetMetric,
+  EndpointWatchRule,
+  ParsedEndpointWatchRule,
   PerfConfig,
   PerfDefaults,
   PerfPageConfig,
@@ -97,7 +99,101 @@ function parseDefaults(raw: unknown, ctx: string): PerfDefaults | undefined {
       false,
       `${ctx}.defaults`,
     ),
+    endpointWatch: parseEndpointWatchArray(raw.endpointWatch, `${ctx}.defaults`),
   };
+}
+
+function parseEndpointWatchRule(
+  raw: unknown,
+  index: number,
+  ctx: string,
+): EndpointWatchRule {
+  const c = `${ctx}.endpointWatch[${index}]`;
+  if (!isRecord(raw)) throw new Error(`${c} must be an object`);
+  const includes = expectString(raw, "urlIncludes", false, c);
+  const regex = expectString(raw, "urlRegex", false, c);
+  const flags = expectString(raw, "urlRegexFlags", false, c) ?? "";
+  if ((includes !== undefined && regex !== undefined) || (!includes && !regex)) {
+    throw new Error(
+      `${c}: exactly one of "urlIncludes" or "urlRegex" is required`,
+    );
+  }
+  if (regex !== undefined) {
+    try {
+      new RegExp(regex, flags);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      const idHint = expectString(raw, "id", false, c) ?? regex;
+      throw new Error(
+        `${c} (id=${JSON.stringify(idHint)}): invalid urlRegex / urlRegexFlags: ${msg}`,
+      );
+    }
+  }
+  const method = expectString(raw, "method", false, c) ?? "GET";
+  const maxCalls = expectNumber(raw, "maxCalls", false, c);
+  const maxTotal = expectNumber(raw, "maxTotalResponseBytes", false, c);
+  if (
+    maxCalls !== undefined &&
+    (!Number.isInteger(maxCalls) || maxCalls < 0)
+  ) {
+    throw new Error(`${c}.maxCalls must be a non-negative integer`);
+  }
+  if (maxTotal !== undefined && maxTotal < 0) {
+    throw new Error(`${c}.maxTotalResponseBytes must be >= 0`);
+  }
+  const id =
+    expectString(raw, "id", false, c) ?? includes ?? regex ?? `rule-${index}`;
+  const rule: EndpointWatchRule = {
+    id,
+    method,
+    maxCalls,
+    maxTotalResponseBytes: maxTotal,
+  };
+  if (includes !== undefined) rule.urlIncludes = includes;
+  if (regex !== undefined) {
+    rule.urlRegex = regex;
+    if (flags !== "") rule.urlRegexFlags = flags;
+  }
+  return rule;
+}
+
+function parseEndpointWatchArray(
+  raw: unknown,
+  ctx: string,
+): EndpointWatchRule[] | undefined {
+  if (raw === undefined || raw === null) return undefined;
+  if (!Array.isArray(raw)) {
+    throw new Error(`${ctx}.endpointWatch must be an array`);
+  }
+  return raw.map((item, i) => parseEndpointWatchRule(item, i, ctx));
+}
+
+/** Compile regex from parsed JSON rules (parse already validated patterns). */
+export function compileEndpointWatchRules(
+  rules: EndpointWatchRule[],
+): ParsedEndpointWatchRule[] {
+  return rules.map((r) => ({
+    ...r,
+    compiledRegex:
+      r.urlRegex !== undefined
+        ? new RegExp(r.urlRegex, r.urlRegexFlags ?? "")
+        : null,
+  }));
+}
+
+/**
+ * Page `endpointWatch` replaces defaults when defined (including empty array).
+ * Otherwise use defaults.endpointWatch or [].
+ */
+export function mergeEndpointWatch(
+  defaults: PerfDefaults | undefined,
+  page: PerfPageConfig,
+): ParsedEndpointWatchRule[] {
+  const raw =
+    page.endpointWatch !== undefined
+      ? page.endpointWatch
+      : (defaults?.endpointWatch ?? []);
+  return compileEndpointWatchRules(raw);
 }
 
 function parseBudgetMetric(
@@ -139,6 +235,7 @@ function parsePage(raw: unknown, index: number): PerfPageConfig {
       false,
       ctx,
     ),
+    endpointWatch: parseEndpointWatchArray(raw.endpointWatch, ctx),
   };
 }
 

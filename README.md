@@ -1,11 +1,13 @@
 # icib-perf-web-tester
 
-Measure **time-to-ready** for web pages with [Playwright](https://playwright.dev): navigate, wait for a visible selector (and optionally a hidden loading selector), repeat over several runs, and compare against a **JSON-defined budget** for CI.
+Measure **time-to-ready** for web pages with [Playwright](https://playwright.dev): navigate, wait for a visible selector (and optionally a hidden loading selector), repeat over several runs, and compare against a **JSON-defined budget** for CI. Optionally **watch API URLs** (substring or regex on the full request URL), count matching responses per run, record **response sizes**, and fail if **`maxCalls`** or **`maxTotalResponseBytes`** budgets are exceeded.
 
 ## Requirements
 
 - Node.js 18+
 - Chromium for Playwright: `npx playwright install chromium`
+
+**AI / MCP agents:** [AGENTS.md](./AGENTS.md) is a **self-contained** reference (config, CLIs, pass/fail, API, artifacts)—no other doc required for integration.
 
 ## Install
 
@@ -48,7 +50,18 @@ Paths in the JSON are resolved **relative to the config file’s directory** unl
 - **`storageState`** — Optional Playwright storage state JSON for authenticated sessions. Omit for public pages.
 - **`readyHidden`** — Set to `""` in defaults or on a page to skip the “wait until hidden” step.
 
-See [perf.config.example.json](./perf.config.example.json) for optional timeouts and per-page overrides.
+### `endpointWatch` (optional)
+
+Define rules on **`defaults.endpointWatch`** (applies to every page that does **not** set its own `endpointWatch`) and/or on **`pages[].endpointWatch`** (replaces defaults for that page only). Each rule must have **exactly one** of:
+
+- **`urlIncludes`** — substring match on the full URL (`https://…` including query), or  
+- **`urlRegex`** — regex **pattern** only (not `/…/flags`), with optional **`urlRegexFlags`** (e.g. `"i"`).
+
+Optional: **`id`** (defaults to the include string or regex), **`method`** (default `GET`), **`maxCalls`** (fail a run if more matching responses than this), **`maxTotalResponseBytes`** (fail a run if the sum of body sizes for matching responses exceeds this). Size uses `Content-Length` when valid, otherwise reads the response body (for matched calls only).
+
+In JSON, **escape backslashes** in regex patterns (e.g. `\\d` for `\d`).
+
+See [perf.config.example.json](./perf.config.example.json) for shared defaults, regex, timeouts, and per-page overrides.
 
 ### Interactive wizard
 
@@ -59,7 +72,7 @@ npx icib-perf-add-check
 npx icib-perf-add-check --config ./config/perf.config.json
 ```
 
-For a **new** file, it asks for `baseURL`, optional `storageState`, `runs`, `headless`, `outputDir`, `budgetMetric`, and optional shared **defaults** (selectors and timeouts). Then it walks you through each **page**: `url`, `maxReadyMs`, and optional per-page overrides. For an **existing** file, it only appends new `pages` entries (global settings stay as they are).
+For a **new** file, it asks for `baseURL`, optional `storageState`, `runs`, `headless`, `outputDir`, `budgetMetric`, optional shared **defaults** (selectors and timeouts), optional shared **`defaults.endpointWatch`** (substring or regex per rule), then each **page**: `url`, `maxReadyMs`, selector overrides, optional **`pages[].endpointWatch`**, and optional timeouts. For an **existing** file, it appends new `pages` only; you can still add page-level `endpointWatch` for those new pages.
 
 ## CLI
 
@@ -75,8 +88,8 @@ npx icib-perf-web-tester --config perf.config.json
 
 ### Exit codes
 
-- **0** — Every page’s metric (`median` or `p95` per `budgetMetric`) is ≤ its `maxReadyMs`.
-- **1** — Invalid config / missing files, or at least one page is over budget.
+- **0** — Every page passes **timing** (`budgetMetric` vs `maxReadyMs`) and all **`endpointWatch`** budgets (if any).
+- **1** — Invalid config / missing files, or any timing or endpoint budget failure.
 
 Artifacts are written under `outputDir`: `results.json`, `screenshots/`, `traces/`.
 
@@ -106,9 +119,15 @@ if (!summary.passed) {
 
 ```bash
 npm install
+npx playwright install chromium
+npm test
+npm run test:integration
 npm run build
 node dist/cli.js --config perf.config.example.json
 ```
+
+- **`npm test`** — Vitest unit tests (stats, endpoint matching, config parsing, endpoint budgets).
+- **`npm run test:integration`** — One Playwright run against a local HTTP server (requires Chromium installed).
 
 ## License
 

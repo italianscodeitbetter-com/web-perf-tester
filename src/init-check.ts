@@ -4,8 +4,9 @@ import process from "node:process";
 import readline from "node:readline/promises";
 import { stdin as input, stdout as output } from "node:process";
 
-type JsonDefaults = Record<string, string | number | undefined>;
-type JsonPage = Record<string, string | number | undefined>;
+type JsonEndpointRule = Record<string, unknown>;
+type JsonDefaults = Record<string, unknown>;
+type JsonPage = Record<string, unknown>;
 type JsonConfig = Record<string, unknown> & {
   baseURL?: string;
   pages?: JsonPage[];
@@ -37,12 +38,83 @@ Options:
   -c, --config <path>   Config file to create or update (default: perf.config.json)
   -h, --help            Show this message
 
-You will be prompted for URLs, budgets (maxReadyMs), and optional selectors.
+You will be prompted for URLs, budgets, optional selectors, and optional
+endpointWatch rules (substring or regex on full request URLs).
 `);
 }
 
 function isRecord(v: unknown): v is Record<string, unknown> {
   return typeof v === "object" && v !== null && !Array.isArray(v);
+}
+
+async function collectEndpointWatchRules(
+  ask: (q: string, defaultValue?: string) => Promise<string>,
+  confirm: (q: string, defaultYes?: boolean) => Promise<boolean>,
+  askNumber: (q: string, defaultValue: number) => Promise<number>,
+  label: string,
+): Promise<JsonEndpointRule[] | undefined> {
+  if (!(await confirm(`Add ${label} endpointWatch rules?`, false))) {
+    return undefined;
+  }
+  const rules: JsonEndpointRule[] = [];
+  let more = true;
+  while (more) {
+    const rule: JsonEndpointRule = {};
+    const matchType = await ask(
+      "Match type: substring or regex",
+      "substring",
+    );
+    const useRegex = matchType.toLowerCase().startsWith("r");
+    if (useRegex) {
+      console.log(
+        "(Regex matches the full URL including origin and query; in JSON you must escape backslashes.)",
+      );
+      const pat = await ask("urlRegex (pattern body only, no /slashes/)", "");
+      if (!pat) {
+        console.log("Skipped rule with empty pattern.");
+      } else {
+        rule.urlRegex = pat;
+        const flags = await ask("urlRegexFlags (e.g. i, or empty)", "");
+        if (flags) rule.urlRegexFlags = flags;
+      }
+    } else {
+      const sub = await ask("urlIncludes (substring of full URL)", "");
+      if (!sub) {
+        console.log("Skipped rule with empty substring.");
+      } else {
+        rule.urlIncludes = sub;
+      }
+    }
+
+    if (rule.urlRegex !== undefined || rule.urlIncludes !== undefined) {
+      const defaultId =
+        typeof rule.urlIncludes === "string"
+          ? rule.urlIncludes
+          : String(rule.urlRegex);
+      rule.id = await ask("Rule id (label in results)", defaultId);
+      rule.method = await ask("HTTP method", "GET");
+      if (await confirm("Set maxCalls budget for this rule?", false)) {
+        rule.maxCalls = await askNumber("maxCalls", 1);
+      }
+      if (await confirm("Set maxTotalResponseBytes budget?", false)) {
+        rule.maxTotalResponseBytes = await askNumber(
+          "maxTotalResponseBytes",
+          100_000,
+        );
+      }
+      pruneRuleUndefined(rule);
+      rules.push(rule);
+    }
+
+    more = await confirm("Add another endpoint rule for this block?", false);
+  }
+  return rules.length > 0 ? rules : undefined;
+}
+
+function pruneRuleUndefined(o: JsonEndpointRule) {
+  for (const k of Object.keys(o)) {
+    if (o[k] === undefined) delete o[k];
+  }
 }
 
 async function main() {
@@ -177,6 +249,23 @@ async function main() {
         );
         config.defaults = defaults;
       }
+
+      if (
+        await confirm(
+          "Set shared defaults.endpointWatch (all pages without their own endpointWatch)?",
+          false,
+        )
+      ) {
+        if (!config.defaults) config.defaults = {};
+        const defs = config.defaults as JsonDefaults;
+        const ep = await collectEndpointWatchRules(
+          ask,
+          confirm,
+          askNumber,
+          "shared defaults",
+        );
+        if (ep) defs.endpointWatch = ep;
+      }
     }
 
     console.log("\n--- Page check(s) to add ---\n");
@@ -223,6 +312,14 @@ async function main() {
             15_000,
           );
         }
+
+        const pageEp = await collectEndpointWatchRules(
+          ask,
+          confirm,
+          askNumber,
+          "page-specific",
+        );
+        if (pageEp) page.endpointWatch = pageEp;
 
         pruneUndefined(page);
         newPages.push(page);

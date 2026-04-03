@@ -2,7 +2,13 @@ import fs from "node:fs";
 import path from "node:path";
 import { performance } from "node:perf_hooks";
 import { chromium, type Page } from "playwright";
-import type { NavigationMetrics, RequestMetric, RunResult } from "./types.js";
+import { createEndpointWatchCollector } from "./endpoint-watch.js";
+import type {
+  NavigationMetrics,
+  ParsedEndpointWatchRule,
+  RequestMetric,
+  RunResult,
+} from "./types.js";
 
 export type MeasureRunOptions = {
   run: number;
@@ -19,6 +25,7 @@ export type MeasureRunOptions = {
   traceDir: string;
   screenshotDir: string;
   filePrefix: string;
+  endpointWatch?: ParsedEndpointWatchRule[];
 };
 
 function wireNetworkCapture(page: Page) {
@@ -113,36 +120,34 @@ function findOpenRequest(
   return null;
 }
 
-async function readNavigationMetrics(page: Page): Promise<NavigationMetrics> {
-  return page.evaluate(() => {
-    const entries = (
-      performance as unknown as {
-        getEntriesByType(type: string): PerformanceEntry[];
-      }
-    ).getEntriesByType("navigation");
-    const nav = entries[0] as PerformanceNavigationTiming | undefined;
-    if (!nav) {
-      return {
-        domContentLoadedMs: null,
-        loadEventMs: null,
-        responseStartMs: null,
-        responseEndMs: null,
-        domInteractiveMs: null,
-        durationMs: null,
-        type: null,
-      };
-    }
-
+/** String form avoids test bundlers rewriting in-page `performance` references. */
+const READ_NAVIGATION_METRICS_SCRIPT = `() => {
+  const entries = performance.getEntriesByType("navigation");
+  const nav = entries[0];
+  if (!nav) {
     return {
-      domContentLoadedMs: nav.domContentLoadedEventEnd,
-      loadEventMs: nav.loadEventEnd,
-      responseStartMs: nav.responseStart,
-      responseEndMs: nav.responseEnd,
-      domInteractiveMs: nav.domInteractive,
-      durationMs: nav.duration,
-      type: nav.type,
+      domContentLoadedMs: null,
+      loadEventMs: null,
+      responseStartMs: null,
+      responseEndMs: null,
+      domInteractiveMs: null,
+      durationMs: null,
+      type: null,
     };
-  });
+  }
+  return {
+    domContentLoadedMs: nav.domContentLoadedEventEnd,
+    loadEventMs: nav.loadEventEnd,
+    responseStartMs: nav.responseStart,
+    responseEndMs: nav.responseEnd,
+    domInteractiveMs: nav.domInteractive,
+    durationMs: nav.duration,
+    type: nav.type,
+  };
+}`;
+
+async function readNavigationMetrics(page: Page): Promise<NavigationMetrics> {
+  return page.evaluate(READ_NAVIGATION_METRICS_SCRIPT);
 }
 
 export async function measureRun(
@@ -163,6 +168,7 @@ export async function measureRun(
     traceDir,
     screenshotDir,
     filePrefix,
+    endpointWatch: endpointWatchOpt,
   } = options;
 
   fs.mkdirSync(traceDir, { recursive: true });
@@ -182,6 +188,12 @@ export async function measureRun(
 
   const page = await context.newPage();
   const requests = wireNetworkCapture(page);
+  const rules = endpointWatchOpt ?? [];
+  const endpointCollector =
+    rules.length > 0 ? createEndpointWatchCollector(rules) : null;
+  if (endpointCollector) {
+    page.on("response", (response) => endpointCollector.onResponse(response));
+  }
 
   const startedAt = new Date().toISOString();
   const start = performance.now();
@@ -209,6 +221,9 @@ export async function measureRun(
 
   const navigation = await readNavigationMetrics(page);
   const allRequests = requests();
+  const endpointWatch = endpointCollector
+    ? await endpointCollector.snapshot()
+    : [];
 
   const screenshotPath = path.join(
     screenshotDir,
@@ -237,5 +252,6 @@ export async function measureRun(
     slowestRequests,
     screenshotPath,
     tracePath,
+    endpointWatch,
   };
 }

@@ -1,11 +1,28 @@
 export type BudgetMetric = "median" | "p95";
 
+/** Rule as stored in JSON (no RegExp — compile at runtime). */
+export type EndpointWatchRule = {
+  id: string;
+  urlIncludes?: string;
+  urlRegex?: string;
+  urlRegexFlags?: string;
+  method: string;
+  maxCalls?: number;
+  maxTotalResponseBytes?: number;
+};
+
+/** Rule ready for matching (regex compiled). */
+export type ParsedEndpointWatchRule = EndpointWatchRule & {
+  compiledRegex: RegExp | null;
+};
+
 export interface PerfDefaults {
   readyVisible?: string;
   readyHidden?: string;
   navigationTimeoutMs?: number;
   readyTimeoutMs?: number;
   readyHiddenTimeoutMs?: number;
+  endpointWatch?: EndpointWatchRule[];
 }
 
 export interface PerfPageConfig {
@@ -16,6 +33,7 @@ export interface PerfPageConfig {
   navigationTimeoutMs?: number;
   readyTimeoutMs?: number;
   readyHiddenTimeoutMs?: number;
+  endpointWatch?: EndpointWatchRule[];
 }
 
 export interface PerfConfig {
@@ -50,6 +68,18 @@ export type NavigationMetrics = {
   type: string | null;
 };
 
+/** Per-rule stats for a single measure run. */
+export type EndpointWatchRunStats = {
+  id: string;
+  urlIncludes?: string;
+  urlRegex?: string;
+  urlRegexFlags?: string;
+  method: string;
+  callCount: number;
+  totalResponseBytes: number;
+  responseSizesBytes: number[];
+};
+
 export type RunResult = {
   run: number;
   startedAt: string;
@@ -62,6 +92,27 @@ export type RunResult = {
   slowestRequests: RequestMetric[];
   screenshotPath: string;
   tracePath: string;
+  endpointWatch: EndpointWatchRunStats[];
+};
+
+/** Per configured rule: budget check across all runs of a page. */
+export type EndpointRuleSummary = {
+  id: string;
+  urlIncludes?: string;
+  urlRegex?: string;
+  urlRegexFlags?: string;
+  method: string;
+  maxCalls?: number;
+  maxTotalResponseBytes?: number;
+  passed: boolean;
+  /** Largest callCount seen in any single run. */
+  maxCallCountInAnyRun: number;
+  /** Largest totalResponseBytes in any single run. */
+  maxTotalBytesInAnyRun: number;
+  /** Run numbers (1-based) that violated maxCalls, if any. */
+  failedRunsMaxCalls: number[];
+  /** Run numbers that violated maxTotalResponseBytes, if any. */
+  failedRunsMaxBytes: number[];
 };
 
 export type ResolvedPageTiming = {
@@ -70,6 +121,11 @@ export type ResolvedPageTiming = {
   maxReadyMs: number;
   budgetMetric: BudgetMetric;
   metricValueMs: number;
+  /** Timing budget only (median/p95 vs maxReadyMs). */
+  timingPassed: boolean;
+  /** All endpoint watch rules satisfied on every run. */
+  endpointWatchPassed: boolean;
+  /** Overall page pass (timing and endpoints). */
   passed: boolean;
   runs: number;
   medianReadyMs: number;
@@ -77,6 +133,7 @@ export type ResolvedPageTiming = {
   /** Slowest single run in this page’s batch (ms). */
   maxObservedReadyMs: number;
   p95ReadyMs: number;
+  endpointRules: EndpointRuleSummary[];
   results: RunResult[];
 };
 
