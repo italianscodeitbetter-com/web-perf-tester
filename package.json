@@ -1,8 +1,11 @@
 {
-  "name": "icib-perf-web-tester",
-  "version": "1.0.0",
+  "name": "@icib.dev/perf-web-tester",
+  "version": "0.0.1",
   "description": "Playwright-based web page performance testing with JSON config and CI-friendly budgets",
   "license": "ISC",
+  "publishConfig": {
+    "access": "public"
+  },
   "author": "",
   "type": "module",
   "engines": {

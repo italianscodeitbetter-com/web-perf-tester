@@ -33,7 +33,7 @@ function parseArgs(argv: string[]) {
 }
 
 function printHelp() {
-  console.log(`icib-perf-web-tester — Playwright web performance checks
+  console.log(`@icib.dev/perf-web-tester — Playwright web performance checks
 
 Usage:
   icib-perf-web-tester [options]

@@ -88,7 +88,7 @@ export function parseInitArgs(argv: string[]): {
 }
 
 export function printInitHelp(): void {
-  console.log(`icib-perf-web-tester init — copy example config and install Chromium
+  console.log(`@icib.dev/perf-web-tester init — copy example config and install Chromium
 
 Usage:
   icib-perf-web-tester init [options] [dest]

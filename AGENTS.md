@@ -1,4 +1,4 @@
-# Agent guide: `icib-perf-web-tester` (complete reference)
+# Agent guide: `@icib.dev/perf-web-tester` (complete reference)
 
 **Goal:** After reading this file alone, an agent should know how to **install**, **configure**, **run**, **interpret results**, and **integrate** this package in a consumer app—without opening other docs.
 
@@ -21,7 +21,7 @@ Human-oriented prose also lives in [README.md](./README.md); content overlaps by
 ## 2. Install (consumer app repo)
 
 ```bash
-npm install -D icib-perf-web-tester playwright
+npm install -D @icib.dev/perf-web-tester playwright
 npx icib-perf-web-tester init
 ```
 
@@ -235,12 +235,12 @@ Treat `outputDir` as **disposable** in CI; add to `.gitignore` if local.
 
 ---
 
-## 14. Programmatic API (package entry `icib-perf-web-tester`)
+## 14. Programmatic API (package entry `@icib.dev/perf-web-tester`)
 
 ### 14.1 Typical CI script
 
 ```ts
-import { loadConfig, runSuite } from "icib-perf-web-tester";
+import { loadConfig, runSuite } from "@icib.dev/perf-web-tester";
 
 const config = loadConfig("perf.config.json");
 const summary = await runSuite(config, {
@@ -300,7 +300,7 @@ process.exitCode = summary.passed ? 0 : 1;
 | CI: browser missing                      | Run `npx playwright install chromium` in CI.                                                           |
 | `init` / `Refusing to overwrite`         | Destination config exists; use **`--force`** or remove the file.                                       |
 | `init` / `playwright install` failed     | Install **`playwright`** in the app (`npm install -D playwright`) or use **`init --skip-browsers`** if browsers are installed elsewhere. |
-| `Example config not found` from `init`   | Broken or partial package install; reinstall **`icib-perf-web-tester`**.                                |
+| `Example config not found` from `init`   | Broken or partial package install; reinstall **`@icib.dev/perf-web-tester`**.                                |
 
 ---
 
@@ -323,4 +323,4 @@ process.exitCode = summary.passed ? 0 : 1;
 
 ---
 
-This file is shipped in the npm package as **`AGENTS.md`** so agents can read it from `node_modules/icib-perf-web-tester/AGENTS.md` after install.
+This file is shipped in the npm package as **`AGENTS.md`** so agents can read it from `node_modules/@icib.dev/perf-web-tester/AGENTS.md` after install.

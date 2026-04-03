@@ -1,4 +1,4 @@
-# icib-perf-web-tester
+# @icib.dev/perf-web-tester
 
 Measure **time-to-ready** for web pages with [Playwright](https://playwright.dev): navigate, wait for a visible selector (and optionally a hidden loading selector), repeat over several runs, and compare against a **JSON-defined budget** for CI. Optionally **watch API URLs** (substring or regex on the full request URL), count matching responses per run, record **response sizes**, and fail if **`maxCalls`** or **`maxTotalResponseBytes`** budgets are exceeded.
 
@@ -20,7 +20,7 @@ To **debug** a failure, turn artifacts back on in JSON: **`"recordTrace": true`*
 In the app you want to test:
 
 ```bash
-npm install -D icib-perf-web-tester playwright
+npm install -D @icib.dev/perf-web-tester playwright
 npx icib-perf-web-tester init
 ```
 
@@ -29,7 +29,7 @@ npx icib-perf-web-tester init
 Without `init`, you can still copy the example by hand and install browsers:
 
 ```bash
-cp node_modules/icib-perf-web-tester/perf.config.example.json perf.config.json
+cp node_modules/@icib.dev/perf-web-tester/perf.config.example.json perf.config.json
 npx playwright install chromium
 ```
 
@@ -37,7 +37,7 @@ npx playwright install chromium
 
 If you did not use `init`, copy the example and edit it:
 
-`cp node_modules/icib-perf-web-tester/perf.config.example.json perf.config.json`
+`cp node_modules/@icib.dev/perf-web-tester/perf.config.example.json perf.config.json`
 
 Paths in the JSON are resolved **relative to the config file’s directory** unless they are absolute.
 
@@ -139,7 +139,7 @@ Artifacts: **`results.json`** is always written. **`screenshots/`** and **`trace
 ## Programmatic API
 
 ```ts
-import { loadConfig, runSuite } from "icib-perf-web-tester";
+import { loadConfig, runSuite } from "@icib.dev/perf-web-tester";
 
 const config = loadConfig("perf.config.json");
 const summary = await runSuite(config);

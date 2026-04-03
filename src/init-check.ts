@@ -29,7 +29,7 @@ function parseArgs(argv: string[]) {
 }
 
 function printHelp() {
-  console.log(`icib-perf-add-check — interactive wizard for perf.config.json
+  console.log(`icib-perf-add-check — interactive wizard for perf.config.json (@icib.dev/perf-web-tester)
 
 Usage:
   icib-perf-add-check [options]
