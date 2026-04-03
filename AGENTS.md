@@ -58,7 +58,7 @@ icib-perf-web-tester [options]
 | Code | Meaning                                                                                                    |
 | ---- | ---------------------------------------------------------------------------------------------------------- |
 | `0`  | Every page: **timing** OK **and** all **endpointWatch** rules OK (or no endpoint rules).                   |
-| `1`  | Invalid/missing config, missing `storageState` file, or any page fails **timing** or **endpoint** budgets. |
+| `1`  | Invalid/missing config, missing `storageState` / **`localStorageState`** file, or any page fails **timing** or **endpoint** budgets. |
 
 ---
 
@@ -76,7 +76,7 @@ icib-perf-add-check [options]
 **Behavior (summary)**
 
 - If the file **exists**: default is **merge** new `pages` entries; optional full replace with confirmation.
-- **New file**: asks for `baseURL`, optional `storageState`, `runs`, `headless`, `outputDir`, `budgetMetric`, optional shared **defaults** (selectors + timeouts), optional **`defaults.endpointWatch`**, then loops **pages** (`url`, `maxReadyMs`, selector overrides, optional **`pages[].endpointWatch`**, optional timeouts).
+- **New file**: asks for `baseURL`, optional `storageState`, optional **`localStorageState`** (flat JSON path), `runs`, `headless`, `outputDir`, `budgetMetric`, optional shared **defaults** (selectors + timeouts), optional **`defaults.endpointWatch`**, then loops **pages** (`url`, `maxReadyMs`, selector overrides, optional **`pages[].endpointWatch`**, optional timeouts).
 - **Endpoint prompts**: per rule, choose **substring** (`urlIncludes`) or **regex** (`urlRegex` + optional `urlRegexFlags`), then optional `id`, `method`, `maxCalls`, `maxTotalResponseBytes`.
 
 ---
@@ -160,15 +160,16 @@ Applied to every **page** that does **not** override a given field (and used for
 ## 11. What one “run” does (per page, per iteration)
 
 1. Launch Chromium; context with `baseURL`, optional `storageState`, viewport 1440×900.
-2. Start tracing; new page; network capture for request metrics.
-3. If endpoint rules exist: on each **response**, match URL + method; increment counts; record sizes (async).
-4. `goto` page `url` (`domcontentloaded`, `navigationTimeoutMs`).
-5. Wait until `readyVisible` is visible (`readyTimeoutMs`).
-6. Unless `readyHidden` is effectively skipped (`""`): try wait until `readyHidden` hidden (`readyHiddenTimeoutMs`); failure is swallowed (optional spinner).
-7. Record **readyMs** (wall time from step 4 start through step 6).
-8. Read navigation timing from the page; finalize request list; await all endpoint size promises.
-9. Screenshot, stop trace, close browser.
-10. Emit one **`RunResult`** (including `endpointWatch` stats per rule).
+2. If **`localStorageState`** is set: **`addInitScript`** applies each key/value to `localStorage` before every document load (same origin as navigation).
+3. Start tracing; new page; network capture for request metrics.
+4. If endpoint rules exist: on each **response**, match URL + method; increment counts; record sizes (async).
+5. `goto` page `url` (`domcontentloaded`, `navigationTimeoutMs`).
+6. Wait until `readyVisible` is visible (`readyTimeoutMs`).
+7. Unless `readyHidden` is effectively skipped (`""`): try wait until `readyHidden` hidden (`readyHiddenTimeoutMs`); failure is swallowed (optional spinner).
+8. Record **readyMs** (wall time from step 5 start through step 7).
+9. Read navigation timing from the page; finalize request list; await all endpoint size promises.
+10. Screenshot, stop trace, close browser.
+11. Emit one **`RunResult`** (including `endpointWatch` stats per rule).
 
 ---
 
@@ -235,6 +236,7 @@ process.exitCode = summary.passed ? 0 : 1;
 | `mergeEndpointWatch(defaults, page)`                     | Resolved **`ParsedEndpointWatchRule[]`** for a page.                           |
 | `compileEndpointWatchRules(rules)`                       | Attach `compiledRegex` from JSON rules.                                        |
 | `resolveFromConfigDir(configPath, p)`                    | Resolve a path next to the config file.                                        |
+| `applyLocalStorageInitScript(context, absPath)`          | Register Playwright init script: `localStorage.setItem` for each pair from the flat JSON file (same as the runner). |
 | `loadLocalStoragePairsFromFile(absPath)`                 | Parse flat JSON file → `Record<string, string>` for custom tooling.            |
 | `evaluateEndpointRules(rules, results)`                  | Compute `EndpointRuleSummary[]` from `RunResult[]`.                            |
 | `percentile(values, p)`                                  | Stats helper (0–100).                                                          |

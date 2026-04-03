@@ -114,6 +114,8 @@ if (!summary.passed) {
 }
 ```
 
+For custom Playwright flows, **`applyLocalStorageInitScript(context, absPath)`** registers the same `localStorage` init script the runner uses (after `browser.newContext()`, before navigation). **`loadLocalStoragePairsFromFile(absPath)`** parses the flat JSON only.
+
 ## Develop this package
 
 ```bash
@@ -125,8 +127,8 @@ npm run build
 node dist/cli.js --config perf.config.example.json
 ```
 
-- **`npm test`** — Vitest unit tests (stats, endpoint matching, config parsing, endpoint budgets).
-- **`npm run test:integration`** — One Playwright run against a local HTTP server (requires Chromium installed).
+- **`npm test`** — Vitest unit tests (stats, endpoint matching, config parsing, **`localStorageState`** parsing, endpoint budgets).
+- **`npm run test:integration`** — Playwright against a local HTTP server: **`endpointWatch`** counting and **`localStorageState`** / init-script behavior (requires Chromium installed).
 
 ## License
 
