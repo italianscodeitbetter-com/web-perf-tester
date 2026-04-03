@@ -48,6 +48,8 @@ export interface PerfConfig {
   headless?: boolean;
   outputDir?: string;
   budgetMetric?: BudgetMetric;
+  /** When true, save an extra PNG right after navigation (before ready selectors). Final PNG is unchanged (after ready). */
+  debugScreenshots?: boolean;
   defaults?: PerfDefaults;
   pages: PerfPageConfig[];
 }
@@ -96,6 +98,8 @@ export type RunResult = {
   failedRequests: number;
   slowestRequests: RequestMetric[];
   screenshotPath: string;
+  /** Set when debug screenshots are enabled: captured after `goto`, before `readyVisible`. */
+  debugScreenshotBeforePath?: string;
   tracePath: string;
   endpointWatch: EndpointWatchRunStats[];
 };

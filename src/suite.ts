@@ -17,6 +17,8 @@ function resolveGotoURL(baseURL: string, pageUrl: string): string {
 export type RunSuiteOptions = {
   /** Override output directory (e.g. from CLI). Must be absolute or cwd-relative. */
   outputDirOverride?: string;
+  /** When set, overrides `config.debugScreenshots`. */
+  debugScreenshots?: boolean;
 };
 
 export async function runSuite(
@@ -32,6 +34,8 @@ export async function runSuite(
   const traceDir = path.join(outputDir, "traces");
   const screenshotDir = path.join(outputDir, "screenshots");
   const resultFile = path.join(outputDir, "results.json");
+  const debugScreenshots =
+    options.debugScreenshots ?? config.debugScreenshots ?? false;
 
   fs.mkdirSync(outputDir, { recursive: true });
   fs.mkdirSync(traceDir, { recursive: true });
@@ -64,6 +68,7 @@ export async function runSuite(
         traceDir,
         screenshotDir,
         filePrefix,
+        debugScreenshots,
         endpointWatch: endpointRules.length > 0 ? endpointRules : undefined,
       });
       results.push(result);

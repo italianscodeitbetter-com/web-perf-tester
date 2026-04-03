@@ -248,6 +248,7 @@ function parseRoot(raw: unknown): PerfConfig {
     headless: expectBoolean(raw, "headless", "config"),
     outputDir: expectString(raw, "outputDir", false, "config"),
     budgetMetric: parseBudgetMetric(raw.budgetMetric, "config"),
+    debugScreenshots: expectBoolean(raw, "debugScreenshots", "config"),
     defaults: parseDefaults(raw.defaults, "config"),
     pages,
   };

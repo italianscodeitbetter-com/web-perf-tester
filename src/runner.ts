@@ -28,6 +28,8 @@ export type MeasureRunOptions = {
   traceDir: string;
   screenshotDir: string;
   filePrefix: string;
+  /** Capture PNG after goto, before waiting for ready selectors (for debugging). */
+  debugScreenshots?: boolean;
   endpointWatch?: ParsedEndpointWatchRule[];
 };
 
@@ -172,6 +174,7 @@ export async function measureRun(
     traceDir,
     screenshotDir,
     filePrefix,
+    debugScreenshots,
     endpointWatch: endpointWatchOpt,
   } = options;
 
@@ -210,6 +213,15 @@ export async function measureRun(
     waitUntil: "domcontentloaded",
     timeout: navigationTimeoutMs,
   });
+
+  let debugScreenshotBeforePath: string | undefined;
+  if (debugScreenshots) {
+    debugScreenshotBeforePath = path.join(
+      screenshotDir,
+      `${filePrefix}-run-${run}-before-ready.png`,
+    );
+    await page.screenshot({ path: debugScreenshotBeforePath, fullPage: true });
+  }
 
   await page
     .locator(readyVisible)
@@ -259,6 +271,7 @@ export async function measureRun(
     failedRequests: allRequests.filter((r) => r.failed).length,
     slowestRequests,
     screenshotPath,
+    debugScreenshotBeforePath,
     tracePath,
     endpointWatch,
   };

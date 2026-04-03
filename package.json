@@ -31,6 +31,7 @@
     "build": "tsup",
     "prepublishOnly": "npm run build",
     "perf": "node dist/cli.js",
+    "perf:init": "node dist/cli.js init",
     "perf:add-check": "node dist/init-check.js",
     "test": "vitest run",
     "test:watch": "vitest",

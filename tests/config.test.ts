@@ -124,6 +124,34 @@ describe("mergeEndpointWatch", () => {
   });
 });
 
+describe("loadConfig debugScreenshots", () => {
+  it("accepts debugScreenshots boolean", () => {
+    const p = writeConfig("c.json", {
+      baseURL: "https://a.com",
+      debugScreenshots: true,
+      pages: [minimalPage],
+    });
+    expect(loadConfig(p).debugScreenshots).toBe(true);
+  });
+
+  it("omits debugScreenshots when not set", () => {
+    const p = writeConfig("c.json", {
+      baseURL: "https://a.com",
+      pages: [minimalPage],
+    });
+    expect(loadConfig(p).debugScreenshots).toBeUndefined();
+  });
+
+  it("rejects non-boolean debugScreenshots", () => {
+    const p = writeConfig("c.json", {
+      baseURL: "https://a.com",
+      debugScreenshots: "yes",
+      pages: [minimalPage],
+    });
+    expect(() => loadConfig(p)).toThrow(/"debugScreenshots" must be a boolean/);
+  });
+});
+
 describe("loadConfig localStorageState", () => {
   it("resolves path relative to config file directory", () => {
     tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "perf-cfg-"));

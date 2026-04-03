@@ -22,11 +22,15 @@ Human-oriented prose also lives in [README.md](./README.md); content overlaps by
 
 ```bash
 npm install -D icib-perf-web-tester playwright
-npx playwright install chromium
+npx icib-perf-web-tester init
 ```
 
+`init` copies the shipped **`perf.config.example.json`** to **`perf.config.json`**, ensures a stub **`{}`** exists for **`localStorageState`** when the example references a missing file, then runs **`npx playwright install chromium`** (omit browsers with **`--skip-browsers`**).
+
+Alternatively: copy the example file manually and run **`npx playwright install chromium`** yourself.
+
 - `playwright` is a **peer dependency**; keep its major version compatible with what the app uses elsewhere if possible.
-- CI must run **`npx playwright install chromium`** (or cache Playwright browsers) before the perf command.
+- CI must run **`npx playwright install chromium`** (or cache Playwright browsers) before the perf command unless browsers are already cached.
 
 ---
 
@@ -34,7 +38,7 @@ npx playwright install chromium
 
 | Binary                 | Purpose                                                                       |
 | ---------------------- | ----------------------------------------------------------------------------- |
-| `icib-perf-web-tester` | Run the full suite from JSON config; writes artifacts; sets exit code.        |
+| `icib-perf-web-tester` | Run the full suite from JSON config **or** **`init`** (copy example + browser install); writes artifacts; sets exit code. |
 | `icib-perf-add-check`  | Interactive wizard: create/merge config, add pages, optional `endpointWatch`. |
 
 Invoke via `npx <name>` or npm scripts.
@@ -45,20 +49,33 @@ Invoke via `npx <name>` or npm scripts.
 
 ```
 icib-perf-web-tester [options]
+icib-perf-web-tester init [options] [dest]
 ```
+
+**Run** (default when the first argument is not `init`):
 
 | Option                      | Meaning                                                                                                               |
 | --------------------------- | --------------------------------------------------------------------------------------------------------------------- |
 | `-c`, `--config <path>`     | Config JSON path. Default: `perf.config.json` (relative to **current working directory** when you start the process). |
 | `-o`, `--output-dir <path>` | Override **`outputDir`** from config. Resolved with `path.resolve()` from cwd.                                        |
+| `--debug-screenshots`       | Force **`debugScreenshots: true`** for this run (extra **before-ready** PNG per run; see section 13).                  |
 | `-h`, `--help`              | Print help and exit 0.                                                                                                |
+
+**`init`** (first argument must be exactly `init`):
+
+| Option / arg           | Meaning |
+| ---------------------- | ------- |
+| `[dest]`               | Output config path. Default **`perf.config.json`** (relative to cwd). |
+| `-f`, `--force`        | Overwrite **`dest`** if it already exists. |
+| `--skip-browsers`      | Do not run **`npx playwright install chromium`**. |
+| `-h`, `--help`         | Init-specific help. |
 
 **Exit codes**
 
 | Code | Meaning                                                                                                    |
 | ---- | ---------------------------------------------------------------------------------------------------------- |
-| `0`  | Every page: **timing** OK **and** all **endpointWatch** rules OK (or no endpoint rules).                   |
-| `1`  | Invalid/missing config, missing `storageState` / **`localStorageState`** file, or any page fails **timing** or **endpoint** budgets. |
+| `0`  | **Run:** every page **timing** OK **and** all **endpointWatch** rules OK (or no endpoint rules). **`init`:** completed successfully. |
+| `1`  | **Run:** invalid/missing config, missing `storageState` / **`localStorageState`** file, or any page fails **timing** or **endpoint** budgets. **`init`:** example missing, overwrite refused, unknown flag, or **`playwright install`** failed. |
 
 ---
 
@@ -95,6 +112,7 @@ All keys below are for the **root** of the JSON file.
 | `headless`     | no       | boolean               | Default **true**.                                                                                                                              |
 | `outputDir`    | no       | string                | Artifacts root. Default **`.webperf`**. Resolved **relative to config file dir**.                                                              |
 | `budgetMetric` | no       | `"median"` \| `"p95"` | Stat compared to `pages[].maxReadyMs`. Default **`median`**.                                                                                   |
+| `debugScreenshots` | no  | boolean            | If **`true`**, save **`page-{i}-run-{k}-before-ready.png`** after **`goto`**, before **`readyVisible`**. CLI **`--debug-screenshots`** overrides for one run. |
 | `defaults`     | no       | object                | Shared **defaults** object (section 7).                                                                                                        |
 
 ---
@@ -164,12 +182,13 @@ Applied to every **page** that does **not** override a given field (and used for
 3. Start tracing; new page; network capture for request metrics.
 4. If endpoint rules exist: on each **response**, match URL + method; increment counts; record sizes (async).
 5. `goto` page `url` (`domcontentloaded`, `navigationTimeoutMs`).
-6. Wait until `readyVisible` is visible (`readyTimeoutMs`).
-7. Unless `readyHidden` is effectively skipped (`""`): try wait until `readyHidden` hidden (`readyHiddenTimeoutMs`); failure is swallowed (optional spinner).
-8. Record **readyMs** (wall time from step 5 start through step 7).
-9. Read navigation timing from the page; finalize request list; await all endpoint size promises.
-10. Screenshot, stop trace, close browser.
-11. Emit one **`RunResult`** (including `endpointWatch` stats per rule).
+6. If **`debugScreenshots`**: full-page PNG **`…-run-{k}-before-ready.png`**.
+7. Wait until `readyVisible` is visible (`readyTimeoutMs`).
+8. Unless `readyHidden` is effectively skipped (`""`): try wait until `readyHidden` hidden (`readyHiddenTimeoutMs`); failure is swallowed (optional spinner).
+9. Record **readyMs** (wall time from step 5 start through step 8).
+10. Read navigation timing from the page; finalize request list; await all endpoint size promises.
+11. Full-page screenshot (**`…-run-{k}.png`** — after-ready), stop trace, close browser.
+12. Emit one **`RunResult`** (including `endpointWatch` stats per rule; **`debugScreenshotBeforePath`** when step 6 ran).
 
 ---
 
@@ -202,7 +221,7 @@ Applied to every **page** that does **not** override a given field (and used for
 | Path           | Content                                                                                                                                                                                               |
 | -------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `results.json` | Full **`SuiteSummary`**: `budgetMetric`, `outputDir`, `resultFile`, `passed`, `pages[]` each with `timingPassed`, `endpointWatchPassed`, `passed`, stats, `endpointRules`, `results` (`RunResult[]`). |
-| `screenshots/` | PNG per page run.                                                                                                                                                                                     |
+| `screenshots/` | PNG per page run: **`page-{i}-run-{k}.png`** (after ready). With **`debugScreenshots`**, also **`page-{i}-run-{k}-before-ready.png`** (after `goto`, before ready selectors). |
 | `traces/`      | Playwright trace zip per page run.                                                                                                                                                                    |
 
 Treat `outputDir` as **disposable** in CI; add to `.gitignore` if local.
@@ -219,11 +238,12 @@ import { loadConfig, runSuite } from "icib-perf-web-tester";
 const config = loadConfig("perf.config.json");
 const summary = await runSuite(config, {
   outputDirOverride: process.env.PERF_OUT, // optional string
+  debugScreenshots: true, // optional; overrides config.debugScreenshots
 });
 process.exitCode = summary.passed ? 0 : 1;
 ```
 
-`loadConfig` resolves **`storageState`**, **`localStorageState`**, and **`outputDir`** on disk relative to the config file; `runSuite` uses `config.outputDir` unless `outputDirOverride` is set.
+`loadConfig` resolves **`storageState`**, **`localStorageState`**, and **`outputDir`** on disk relative to the config file; `runSuite` uses `config.outputDir` unless `outputDirOverride` is set. **`runSuite`’s `options.debugScreenshots`**, when set, overrides **`config.debugScreenshots`** for that run.
 
 ### 14.2 Exports (functions)
 
@@ -250,8 +270,8 @@ process.exitCode = summary.passed ? 0 : 1;
 
 ## 15. Integration checklist (short)
 
-1. Add deps + `playwright install chromium`.
-2. Add `perf.config.json` (copy from package `perf.config.example.json` or use wizard).
+1. Add deps; run **`npx icib-perf-web-tester init`** (or copy `perf.config.example.json` + `playwright install chromium`).
+2. Adjust `perf.config.json` (or use **`icib-perf-add-check`** wizard).
 3. Set **`baseURL`**, **`pages`**, stable **`readyVisible`** / **`readyHidden`**.
 4. Add npm script: `icib-perf-web-tester --config perf.config.json`.
 5. `.gitignore` **`outputDir`** (and secrets): traces, screenshots, `storageState` / `localStorageState` files if sensitive.
@@ -271,6 +291,9 @@ process.exitCode = summary.passed ? 0 : 1;
 | Timeout on `readyVisible`                | Selector wrong, app slow, or `baseURL`/`url` wrong.                                                    |
 | Endpoint count 0                         | Pattern does not match **full** URL; method mismatch; requests happen before/after measurement window. |
 | CI: browser missing                      | Run `npx playwright install chromium` in CI.                                                           |
+| `init` / `Refusing to overwrite`         | Destination config exists; use **`--force`** or remove the file.                                       |
+| `init` / `playwright install` failed     | Install **`playwright`** in the app (`npm install -D playwright`) or use **`init --skip-browsers`** if browsers are installed elsewhere. |
+| `Example config not found` from `init`   | Broken or partial package install; reinstall **`icib-perf-web-tester`**.                                |
 
 ---
 

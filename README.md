@@ -15,12 +15,21 @@ In the app you want to test:
 
 ```bash
 npm install -D icib-perf-web-tester playwright
+npx icib-perf-web-tester init
+```
+
+`init` copies **`perf.config.example.json`** from the package to **`perf.config.json`** (or a path you pass), creates an empty **`{}`** file for **`localStorageState`** in the example if that path is missing (so the config loads), then runs **`npx playwright install chromium`**. Use **`--skip-browsers`** if browsers are already installed. Use **`--force`** to overwrite an existing config.
+
+Without `init`, you can still copy the example by hand and install browsers:
+
+```bash
+cp node_modules/icib-perf-web-tester/perf.config.example.json perf.config.json
 npx playwright install chromium
 ```
 
 ## Config
 
-Copy the example and edit it:
+If you did not use `init`, copy the example and edit it:
 
 `cp node_modules/icib-perf-web-tester/perf.config.example.json perf.config.json`
 
@@ -47,6 +56,7 @@ Paths in the JSON are resolved **relative to the config file’s directory** unl
 - **`budgetMetric`** — `"median"` (default) or `"p95"`. The chosen value is compared to `maxReadyMs`.
 - **`storageState`** — Optional path to **Playwright** storage state (`cookies`, optional `origins`…). Not a flat token file.
 - **`localStorageState`** — Optional path to **flat** JSON `{ "key": "value" }`. Each pair is applied with `localStorage.setItem` before your app runs. Use for custom keys (e.g. `accessTokenAdmin`). Same path rules as other config paths. Can be combined with `storageState`.
+- **`debugScreenshots`** — Optional boolean. When **`true`**, each run saves an extra full-page PNG right after navigation (`domcontentloaded`), before waiting for **`readyVisible`** (`*-before-ready.png`). The normal **`page-*-run-*.png`** is still taken after ready (unchanged). Overridable with CLI **`--debug-screenshots`**.
 - **`readyHidden`** — Set to `""` in defaults or on a page to skip the “wait until hidden” step.
 
 ### `endpointWatch` (optional)
@@ -77,20 +87,32 @@ For a **new** file, it asks for `baseURL`, optional `storageState`, optional `lo
 
 ```bash
 npx icib-perf-web-tester --config perf.config.json
+npx icib-perf-web-tester init
+npx icib-perf-web-tester init --force ./config/perf.config.json
 ```
 
 | Option                      | Description                               |
 | --------------------------- | ----------------------------------------- |
 | `-c`, `--config <path>`     | Config file (default: `perf.config.json`) |
 | `-o`, `--output-dir <path>` | Override `outputDir` from config          |
-| `-h`, `--help`              | Help                                      |
+| `--debug-screenshots`       | Save an extra **before-ready** PNG each run (also set `debugScreenshots` in JSON) |
+| `-h`, `--help`              | Help for the run command                  |
+
+### `init` subcommand
+
+| Option / argument    | Description |
+| -------------------- | ----------- |
+| `[dest]`             | Output path (default `perf.config.json`) |
+| `-f`, `--force`      | Overwrite `dest` if it exists |
+| `--skip-browsers`    | Do not run `npx playwright install chromium` |
+| `-h`, `--help`       | Help for `init` |
 
 ### Exit codes
 
-- **0** — Every page passes **timing** (`budgetMetric` vs `maxReadyMs`) and all **`endpointWatch`** budgets (if any).
-- **1** — Invalid config / missing files, or any timing or endpoint budget failure.
+- **0** — Run: all pages pass **timing** and **`endpointWatch`** budgets. **Init:** success.
+- **1** — Run: invalid config / missing files, or any budget failure. **Init:** missing example file, refused overwrite, or browser install failed.
 
-Artifacts are written under `outputDir`: `results.json`, `screenshots/`, `traces/`.
+Artifacts are written under `outputDir`: `results.json`, `screenshots/`, `traces/`. With **`debugScreenshots`** (config or `--debug-screenshots`), each run also writes `page-{n}-run-{k}-before-ready.png` right after `domcontentloaded`; the usual `page-{n}-run-{k}.png` is still the **after-ready** full-page capture.
 
 ### npm script
 
@@ -114,6 +136,8 @@ if (!summary.passed) {
 }
 ```
 
+Use `runSuite(config, { debugScreenshots: true })` to force the same extra **before-ready** screenshots as the **`--debug-screenshots`** CLI flag.
+
 For custom Playwright flows, **`applyLocalStorageInitScript(context, absPath)`** registers the same `localStorage` init script the runner uses (after `browser.newContext()`, before navigation). **`loadLocalStoragePairsFromFile(absPath)`** parses the flat JSON only.
 
 ## Develop this package
@@ -127,7 +151,7 @@ npm run build
 node dist/cli.js --config perf.config.example.json
 ```
 
-- **`npm test`** — Vitest unit tests (stats, endpoint matching, config parsing, **`localStorageState`** parsing, endpoint budgets).
+- **`npm test`** — Vitest unit tests (stats, endpoint matching, config parsing, **`init`** / **`localStorageState`** parsing, endpoint budgets).
 - **`npm run test:integration`** — Playwright against a local HTTP server: **`endpointWatch`** counting and **`localStorageState`** / init-script behavior (requires Chromium installed).
 
 ## License
