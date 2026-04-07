@@ -169,6 +169,20 @@ describe("createEndpointWatchCollector getCallCounts", () => {
     );
     expect(c.getCallCounts()).toEqual([1, 0]);
   });
+
+  it("keeps separate counters when two rules reuse the same id string", async () => {
+    const dup = "api";
+    const rules: ParsedEndpointWatchRule[] = [
+      { ...ruleIncludes("/foo"), id: dup },
+      { ...ruleIncludes("/bar"), id: dup },
+    ];
+    const c = createEndpointWatchCollector(rules);
+    c.onResponse(mockResponse("https://x.com/foo", "GET") as never);
+    c.onResponse(mockResponse("https://x.com/foo", "GET") as never);
+    c.onResponse(mockResponse("https://x.com/bar", "GET") as never);
+    const snap = await c.snapshot();
+    expect(snap.map((s) => s.callCount)).toEqual([2, 1]);
+  });
 });
 
 describe("waitForTrackedEndpointResponses", () => {

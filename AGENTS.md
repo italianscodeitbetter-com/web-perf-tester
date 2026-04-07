@@ -265,7 +265,7 @@ process.exitCode = summary.passed ? 0 : 1;
 | `resolveFromConfigDir(configPath, p)`                    | Resolve a path next to the config file.                                        |
 | `applyLocalStorageInitScript(context, absPath)`          | Register Playwright init script: `localStorage.setItem` for each pair from the flat JSON file (same as the runner). |
 | `loadLocalStoragePairsFromFile(absPath)`                 | Parse flat JSON file → `Record<string, string>` for custom tooling.            |
-| `evaluateEndpointRules(rules, results)`                  | Compute `EndpointRuleSummary[]` from `RunResult[]`.                            |
+| `evaluateEndpointRules(rules, results)`                  | Compute `EndpointRuleSummary[]` from `RunResult[]`. Rows match **`rules` order** (`run.endpointWatch[i]` ↔ `rules[i]`); duplicate **`id`** values do not merge counts. |
 | `percentile(values, p)`                                  | Stats helper (0–100).                                                          |
 | `responseMatchesAnyEndpointRule`, `createUntrackedRepeatApiCollector` | Same logic as duplicate-untracked API detection (custom tooling). |
 | `methodsMatch`, `urlMatchesRule`, `getResponseSizeBytes` | Endpoint matching / sizing helpers (tests or custom tooling).                  |

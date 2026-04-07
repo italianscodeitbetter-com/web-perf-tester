@@ -5,25 +5,26 @@ import type {
   RunResult,
 } from "./types.js";
 
-function statsForRule(
+/** Stats row `run.endpointWatch[i]` matches `rules[i]` (same order as the collector). */
+function statsForRuleIndex(
   run: RunResult,
-  ruleId: string,
+  ruleIndex: number,
 ): EndpointWatchRunStats | undefined {
-  return run.endpointWatch.find((s) => s.id === ruleId);
+  return run.endpointWatch[ruleIndex];
 }
 
 export function evaluateEndpointRules(
   rules: ParsedEndpointWatchRule[],
   results: RunResult[],
 ): EndpointRuleSummary[] {
-  return rules.map((rule) => {
+  return rules.map((rule, ruleIndex) => {
     const failedRunsMaxCalls: number[] = [];
     const failedRunsMaxBytes: number[] = [];
     let maxCallCountInAnyRun = 0;
     let maxTotalBytesInAnyRun = 0;
 
     for (const run of results) {
-      const st = statsForRule(run, rule.id);
+      const st = statsForRuleIndex(run, ruleIndex);
       const callCount = st?.callCount ?? 0;
       const totalBytes = st?.totalResponseBytes ?? 0;
       maxCallCountInAnyRun = Math.max(maxCallCountInAnyRun, callCount);
