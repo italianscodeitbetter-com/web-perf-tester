@@ -1,0 +1,23 @@
+**/*.map
+
+# Source, tests, and tooling (defense in depth alongside package.json "files")
+src/
+tests/
+coverage/
+
+tsconfig.json
+tsup.config.ts
+vitest.config.ts
+vitest.integration.config.ts
+
+# Local / secret artifacts (never publish)
+.webperf/
+auth.json
+perf.config.json
+
+# Repo and editor noise
+.git/
+.github/
+.cursor/
+*.log
+.DS_Store

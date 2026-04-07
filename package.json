@@ -14,11 +14,12 @@
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "bin": {
-    "icib-perf-web-tester": "./dist/cli.js",
-    "icib-perf-add-check": "./dist/init-check.js"
+    "icib-perf-web-tester": "dist/cli.js",
+    "icib-perf-add-check": "dist/init-check.js"
   },
   "files": [
-    "dist",
+    "dist/*.js",
+    "dist/*.d.ts",
     "README.md",
     "AGENTS.md",
     "LICENSE",
