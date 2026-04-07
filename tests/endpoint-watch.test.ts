@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  cloneParsedEndpointWatchRules,
   createEndpointWatchCollector,
   createUntrackedRepeatApiCollector,
   getResponseSizeBytes,
@@ -54,6 +55,23 @@ describe("urlMatchesRule", () => {
   it("respects regex flags", () => {
     const r = ruleRegex("^HTTPS://X.COM/API$", "i");
     expect(urlMatchesRule("https://x.com/api", r)).toBe(true);
+  });
+
+  it("matches global regex on every call (no stale lastIndex)", () => {
+    const r = ruleRegex("foo", "g");
+    expect(urlMatchesRule("https://x.com/foo-a", r)).toBe(true);
+    expect(urlMatchesRule("https://x.com/foo-b", r)).toBe(true);
+  });
+});
+
+describe("cloneParsedEndpointWatchRules", () => {
+  it("gives each rule a new RegExp instance", () => {
+    const a: ParsedEndpointWatchRule[] = [
+      { ...ruleRegex("x", "g"), id: "a" },
+    ];
+    const b = cloneParsedEndpointWatchRules(a);
+    expect(b[0]!.compiledRegex).not.toBe(a[0]!.compiledRegex);
+    expect(b[0]!.compiledRegex?.source).toBe("x");
   });
 });
 
@@ -138,6 +156,18 @@ describe("createEndpointWatchCollector getCallCounts", () => {
     const c = createEndpointWatchCollector(rules);
     c.onResponse(mockResponse("https://x.com/api/a", "GET") as never);
     expect(c.getCallCounts()).toEqual([1]);
+  });
+
+  it("counts each response at most once: first matching rule only", () => {
+    const rules: ParsedEndpointWatchRule[] = [
+      { ...ruleIncludes("/community"), id: "community" },
+      { ...ruleIncludes("/client"), id: "client" },
+    ];
+    const c = createEndpointWatchCollector(rules);
+    c.onResponse(
+      mockResponse("https://x.com/community/clients", "GET") as never,
+    );
+    expect(c.getCallCounts()).toEqual([1, 0]);
   });
 });
 

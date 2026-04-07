@@ -1,4 +1,5 @@
 import process from "node:process";
+import { colorFail, colorPass } from "./cli-colors.js";
 import { loadConfig } from "./config.js";
 import {
   parseInitArgs,
@@ -95,25 +96,33 @@ async function main() {
   console.log(`Metric:    ${summary.budgetMetric}`);
   console.log(`Results:   ${summary.resultFile}`);
   for (const p of summary.pages) {
-    const status = p.passed ? "PASS" : "FAIL";
-    const timeOk = p.timingPassed ? "ok" : "FAIL";
+    const status = p.passed ? colorPass("PASS") : colorFail("FAIL");
+    const timeOk = p.timingPassed ? colorPass("ok") : colorFail("FAIL");
     const epOk =
       p.endpointRules.length === 0
         ? "n/a"
         : p.endpointWatchPassed
-          ? "ok"
-          : "FAIL";
+          ? colorPass("ok")
+          : colorFail("FAIL");
     console.log(
       `  [${status}] ${p.url} — time ${timeOk} (${summary.budgetMetric}=${Math.round(p.metricValueMs)} ms / ${p.maxReadyMs} ms) | endpoints ${epOk}`,
     );
     for (const r of p.endpointRules) {
       if (!r.passed) {
         console.log(
-          `      rule ${JSON.stringify(r.id)}: maxCalls=${r.maxCallCountInAnyRun}${r.maxCalls !== undefined ? ` (budget ${r.maxCalls})` : ""} maxBytes=${r.maxTotalBytesInAnyRun}${r.maxTotalResponseBytes !== undefined ? ` (budget ${r.maxTotalResponseBytes})` : ""} failedRuns calls=${JSON.stringify(r.failedRunsMaxCalls)} bytes=${JSON.stringify(r.failedRunsMaxBytes)}`,
+          colorFail(
+            `      rule ${JSON.stringify(r.id)}: maxCalls=${r.maxCallCountInAnyRun}${r.maxCalls !== undefined ? ` (budget ${r.maxCalls})` : ""} maxBytes=${r.maxTotalBytesInAnyRun}${r.maxTotalResponseBytes !== undefined ? ` (budget ${r.maxTotalResponseBytes})` : ""} failedRuns calls=${JSON.stringify(r.failedRunsMaxCalls)} bytes=${JSON.stringify(r.failedRunsMaxBytes)}`,
+          ),
         );
       }
     }
   }
+
+  console.log(
+    summary.passed
+      ? colorPass("\nAll checks passed.")
+      : colorFail("\nSome checks failed."),
+  );
 
   if (!summary.passed) {
     process.exitCode = 1;

@@ -10,12 +10,27 @@ export function methodsMatch(
   return requestMethod.toUpperCase() === ruleMethod.toUpperCase();
 }
 
+/** Fresh `RegExp` per run so `lastIndex` (e.g. with `g` / `y`) never carries over. */
+export function cloneParsedEndpointWatchRules(
+  rules: ParsedEndpointWatchRule[],
+): ParsedEndpointWatchRule[] {
+  return rules.map((r) => ({
+    ...r,
+    compiledRegex:
+      r.urlRegex !== undefined
+        ? new RegExp(r.urlRegex, r.urlRegexFlags ?? "")
+        : null,
+  }));
+}
+
 export function urlMatchesRule(
   fullUrl: string,
   rule: ParsedEndpointWatchRule,
 ): boolean {
   if (rule.compiledRegex) {
-    return rule.compiledRegex.test(fullUrl);
+    const rx = rule.compiledRegex;
+    rx.lastIndex = 0;
+    return rx.test(fullUrl);
   }
   if (rule.urlIncludes !== undefined) {
     return fullUrl.includes(rule.urlIncludes);
@@ -104,6 +119,11 @@ export async function getResponseSizeBytes(response: {
   }
 }
 
+/**
+ * Each HTTP response increments at most one rule: the first in `rules` whose
+ * method and URL match. Put more specific patterns before broader ones (e.g.
+ * `/community/clients` matches both `/community` and `/client` substring rules).
+ */
 export function createEndpointWatchCollector(rules: ParsedEndpointWatchRule[]) {
   type Agg = {
     id: string;
@@ -151,6 +171,7 @@ export function createEndpointWatchCollector(rules: ParsedEndpointWatchRule[]) {
           }
         })(),
       );
+      break;
     }
   }
 

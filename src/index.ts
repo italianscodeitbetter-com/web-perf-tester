@@ -12,6 +12,7 @@ export {
 } from "./local-storage-inject.js";
 export { evaluateEndpointRules } from "./endpoint-eval.js";
 export {
+  cloneParsedEndpointWatchRules,
   createUntrackedRepeatApiCollector,
   getResponseSizeBytes,
   methodsMatch,

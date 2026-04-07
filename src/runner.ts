@@ -4,6 +4,7 @@ import { performance } from "node:perf_hooks";
 import { chromium, type Browser, type Page } from "playwright";
 import { applyLocalStorageInitScript } from "./local-storage-inject.js";
 import {
+  cloneParsedEndpointWatchRules,
   createEndpointWatchCollector,
   createUntrackedRepeatApiCollector,
   waitForTrackedEndpointResponses,
@@ -246,7 +247,11 @@ export async function measureRun(
     const requests = recordRequests
       ? wireNetworkCapture(page)
       : () => [] as RequestMetric[];
-    const rules = endpointWatchOpt ?? [];
+    const rulesSource = endpointWatchOpt ?? [];
+    const rules =
+      rulesSource.length > 0
+        ? cloneParsedEndpointWatchRules(rulesSource)
+        : [];
     const endpointCollector =
       rules.length > 0 ? createEndpointWatchCollector(rules) : null;
     if (endpointCollector) {

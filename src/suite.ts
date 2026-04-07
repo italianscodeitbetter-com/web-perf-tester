@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import type { PerfConfig } from "./types.js";
 import type { SuiteSummary } from "./types.js";
+import { colorFail, colorPass } from "./cli-colors.js";
 import { evaluateEndpointRules } from "./endpoint-eval.js";
 import { chromium } from "playwright";
 import { mergeEndpointWatch, mergePageOptions } from "./config.js";
@@ -87,6 +88,12 @@ export async function runSuite(
           endpointWatch: endpointRules.length > 0 ? endpointRules : undefined,
         });
         results.push(result);
+        const timingRunOk = result.readyMs <= merged.maxReadyMs;
+        const epRunOk =
+          endpointRules.length === 0 ||
+          evaluateEndpointRules(endpointRules, [result]).every((e) => e.passed);
+        const runOk = timingRunOk && epRunOk;
+        const runTag = runOk ? colorPass("ok") : colorFail("FAIL");
         const epHint =
           endpointRules.length > 0
             ? ` | endpoints: ${result.endpointWatch.map((e) => `${e.id}=${e.callCount}`).join(", ")}`
@@ -96,7 +103,7 @@ export async function runSuite(
             ? ` | untracked repeat APIs: ${result.untrackedRepeatApis.length} (see results.json → untrackedRepeatApis)`
             : "";
         console.log(
-          `[${pi + 1}/${config.pages.length}] Run ${i}/${runs}: ${gotoURL} ready in ${Math.round(result.readyMs)} ms${epHint}${dupHint}`,
+          `[${pi + 1}/${config.pages.length}] Run ${i}/${runs}: ${gotoURL} ${runTag} — ready in ${Math.round(result.readyMs)} ms${epHint}${dupHint}`,
         );
       }
     } finally {

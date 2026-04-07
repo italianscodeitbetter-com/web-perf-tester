@@ -261,6 +261,7 @@ process.exitCode = summary.passed ? 0 : 1;
 | `mergePageOptions(defaults, page)`                       | Resolved selector/timeouts for a page.                                         |
 | `mergeEndpointWatch(defaults, page)`                     | Resolved **`ParsedEndpointWatchRule[]`** for a page.                           |
 | `compileEndpointWatchRules(rules)`                       | Attach `compiledRegex` from JSON rules.                                        |
+| `cloneParsedEndpointWatchRules(rules)`                   | Copy rules with fresh `RegExp` instances (no shared `lastIndex` across runs).  |
 | `resolveFromConfigDir(configPath, p)`                    | Resolve a path next to the config file.                                        |
 | `applyLocalStorageInitScript(context, absPath)`          | Register Playwright init script: `localStorage.setItem` for each pair from the flat JSON file (same as the runner). |
 | `loadLocalStoragePairsFromFile(absPath)`                 | Parse flat JSON file → `Record<string, string>` for custom tooling.            |
