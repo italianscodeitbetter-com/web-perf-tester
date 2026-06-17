@@ -272,6 +272,7 @@ function parseRoot(raw: unknown): PerfConfig {
       "reportUntrackedRepeatApis",
       "config",
     ),
+    recordPdfReport: expectBoolean(raw, "recordPdfReport", "config"),
     defaults: parseDefaults(raw.defaults, "config"),
     pages,
   };

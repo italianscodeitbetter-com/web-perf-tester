@@ -5,6 +5,7 @@
   "headless": true,
   "outputDir": ".webperf",
   "budgetMetric": "median",
+  "recordPdfReport": true,
   "defaults": {
     "readyVisible": "[data-test=main-chart]",
     "readyHidden": "[data-test=loading]",

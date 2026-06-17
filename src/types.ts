@@ -73,6 +73,8 @@ export interface PerfConfig {
    * and occur more than once (`RunResult.untrackedRepeatApis`).
    */
   reportUntrackedRepeatApis?: boolean;
+  /** Write `report.pdf` next to `results.json` in the daily run folder. Default true. */
+  recordPdfReport?: boolean;
   defaults?: PerfDefaults;
   pages: PerfPageConfig[];
 }
@@ -180,8 +182,13 @@ export type ResolvedPageTiming = {
 
 export type SuiteSummary = {
   budgetMetric: BudgetMetric;
+  /** Base artifacts directory (traces/screenshots). */
   outputDir: string;
+  /** Daily folder: `outputDir/YYYY-MM-DD`. */
+  runOutputDir: string;
   resultFile: string;
+  /** Empty when `recordPdfReport` was false. */
+  reportFile: string;
   passed: boolean;
   pages: ResolvedPageTiming[];
 };

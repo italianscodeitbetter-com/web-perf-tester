@@ -24,7 +24,7 @@ npm install -D @icib.dev/perf-web-tester playwright
 npx icib-perf-web-tester init
 ```
 
-`init` copies **`perf.config.example.json`** from the package to **`perf.config.json`** (or a path you pass), creates an empty **`{}`** file for **`localStorageState`** in the example if that path is missing (so the config loads), then runs **`npx playwright install chromium`**. Use **`--skip-browsers`** if browsers are already installed. Use **`--force`** to overwrite an existing config.
+`init` copies **`perf.config.example.json`** from the package to **`perf.config.json`** (or a path you pass), creates an empty **`{}`** file for **`localStorageState`** in the example if that path is missing (so the config loads), adds **`outputDir`** to **`.gitignore`** when not already present, then runs **`npx playwright install chromium`**. Use **`--skip-browsers`** if browsers are already installed. Use **`--force`** to overwrite an existing config.
 
 Without `init`, you can still copy the example by hand and install browsers:
 
@@ -68,6 +68,7 @@ Paths in the JSON are resolved **relative to the config file’s directory** unl
 - **`fullPageScreenshot`** — Optional. Default **off** (viewport only when screenshots are on). Set **`true`** with **`recordScreenshot`** for full-page PNGs.
 - **`traceSnapshots`** — Optional. Default **off**. Set **`true`** with **`recordTrace`** for DOM snapshots inside traces (heavy).
 - **`reportUntrackedRepeatApis`** — Optional. Default **on**. When **`true`**, each run adds **`untrackedRepeatApis`** to **`results.json`**: XHR/fetch URLs that **do not** match any **`endpointWatch`** rule but were requested **more than once** in that run (helps spot duplicate or missing rules). Set **`false`** to disable.
+- **`recordPdfReport`** — Optional. Default **on**. Write **`report.pdf`** next to **`results.json`** in the daily output folder. Set **`false`** to skip PDF generation.
 - **`readyHidden`** — Set to `""` in defaults or on a page to skip the “wait until hidden” step.
 
 ### `endpointWatch` (optional)
@@ -124,7 +125,7 @@ npx icib-perf-web-tester init --force ./config/perf.config.json
 - **0** — Run: all pages pass **timing** and **`endpointWatch`** budgets. **Init:** success.
 - **1** — Run: invalid config / missing files, or any budget failure. **Init:** missing example file, refused overwrite, or browser install failed.
 
-Artifacts: **`results.json`** is always written. **`screenshots/`** and **`traces/`** only when **`recordScreenshot`** / **`recordTrace`** are **`true`**.
+Artifacts: **`results.json`** and **`report.pdf`** are written under **`outputDir/YYYY-MM-DD/`** (local calendar date; same-day runs overwrite). **`screenshots/`** and **`traces/`** stay at the **`outputDir`** root and are only created when **`recordScreenshot`** / **`recordTrace`** are **`true`**.
 
 ### npm script
 

@@ -5,7 +5,9 @@ import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
 import { loadConfig } from "../src/config.js";
 import {
+  ensureGitignoreOutputDir,
   ensureOptionalLocalStorageStub,
+  normalizeGitignoreOutputDir,
   parseInitArgs,
   runInit,
 } from "../src/init-command.js";
@@ -141,5 +143,55 @@ describe("runInit", () => {
     });
     const raw = fs.readFileSync(dest, "utf8");
     expect(raw).toContain("app.example.com");
+  });
+
+  it("appends outputDir to .gitignore on init", async () => {
+    tmp = fs.mkdtempSync(path.join(os.tmpdir(), "perf-init-"));
+    const dest = path.join(tmp, "perf.config.json");
+    await runInit({
+      dest,
+      skipBrowsers: true,
+      cwd: tmp,
+      exampleSourcePath: repoExample,
+    });
+    const gi = fs.readFileSync(path.join(tmp, ".gitignore"), "utf8");
+    expect(gi).toContain(".webperf/");
+    expect(gi).toContain("@icib.dev/perf-web-tester artifacts");
+  });
+
+  it("does not duplicate .gitignore entry on second init", async () => {
+    tmp = fs.mkdtempSync(path.join(os.tmpdir(), "perf-init-"));
+    const dest = path.join(tmp, "perf.config.json");
+    await runInit({
+      dest,
+      skipBrowsers: true,
+      cwd: tmp,
+      exampleSourcePath: repoExample,
+    });
+    await runInit({
+      dest,
+      force: true,
+      skipBrowsers: true,
+      cwd: tmp,
+      exampleSourcePath: repoExample,
+    });
+    const gi = fs.readFileSync(path.join(tmp, ".gitignore"), "utf8");
+    expect(gi.match(/\.webperf\//g)?.length).toBe(1);
+  });
+});
+
+describe("ensureGitignoreOutputDir", () => {
+  it("creates .gitignore with custom outputDir", () => {
+    tmp = fs.mkdtempSync(path.join(os.tmpdir(), "perf-gi-"));
+    const result = ensureGitignoreOutputDir(tmp, "artifacts/perf");
+    expect(result.updated).toBe(true);
+    expect(result.line).toBe("artifacts/perf/");
+    const gi = fs.readFileSync(path.join(tmp, ".gitignore"), "utf8");
+    expect(gi).toContain("artifacts/perf/");
+  });
+
+  it("normalizeGitignoreOutputDir adds trailing slash", () => {
+    expect(normalizeGitignoreOutputDir(".webperf")).toBe(".webperf/");
+    expect(normalizeGitignoreOutputDir(".webperf/")).toBe(".webperf/");
   });
 });

@@ -25,7 +25,7 @@ npm install -D @icib.dev/perf-web-tester playwright
 npx icib-perf-web-tester init
 ```
 
-`init` copies the shipped **`perf.config.example.json`** to **`perf.config.json`**, ensures a stub **`{}`** exists for **`localStorageState`** when the example references a missing file, then runs **`npx playwright install chromium`** (omit browsers with **`--skip-browsers`**).
+`init` copies the shipped **`perf.config.example.json`** to **`perf.config.json`**, ensures a stub **`{}`** exists for **`localStorageState`** when the example references a missing file, appends **`outputDir`** to **`.gitignore`** when not already ignored, then runs **`npx playwright install chromium`** (omit browsers with **`--skip-browsers`**).
 
 Alternatively: copy the example file manually and run **`npx playwright install chromium`** yourself.
 
@@ -117,6 +117,7 @@ All keys below are for the **root** of the JSON file.
 | `fullPageScreenshot` | no | boolean            | Default **off**. With **`recordScreenshot`**, use **`true`** for full-page capture instead of viewport.                                       |
 | `traceSnapshots` | no     | boolean               | Default **off**. With **`recordTrace`**, set **`true`** for DOM snapshots in traces (heavy).                                                  |
 | `reportUntrackedRepeatApis` | no | boolean        | Default **on**. Fills **`RunResult.untrackedRepeatApis`**: XHR/fetch not matched by any **`endpointWatch`** rule but requested more than once in the run. Set **`false`** to disable. |
+| `recordPdfReport` | no | boolean               | Default **on**. Write **`report.pdf`** next to **`results.json`** in the daily folder. Set **`false`** to skip PDF generation. |
 | `defaults`     | no       | object                | Shared **defaults** object (section 7).                                                                                                        |
 
 ---
@@ -225,13 +226,16 @@ Applied to every **page** that does **not** override a given field (and used for
 
 ## 13. Artifacts (under `outputDir`)
 
-| Path           | Content                                                                                                                                                                                               |
-| -------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `results.json` | Full **`SuiteSummary`**: `budgetMetric`, `outputDir`, `resultFile`, `passed`, `pages[]` each with `timingPassed`, `endpointWatchPassed`, `passed`, stats, `endpointRules`, `results` (`RunResult[]`). |
-| `screenshots/` | Only if **`recordScreenshot`**: **`page-{i}-run-{k}.png`** (after ready). |
-| `traces/`      | Only if **`recordTrace`**: Playwright trace zip per run.                                                                                                                                              |
+Daily run outputs use a **local calendar date** folder: **`outputDir/YYYY-MM-DD/`**. Multiple runs on the same day overwrite that day’s **`results.json`** and **`report.pdf`**. Traces and screenshots stay at the **`outputDir`** root.
 
-Treat `outputDir` as **disposable** in CI; add to `.gitignore` if local.
+| Path | Content |
+| ---- | ------- |
+| `YYYY-MM-DD/results.json` | Full **`SuiteSummary`**: `budgetMetric`, `outputDir`, `runOutputDir`, `resultFile`, `reportFile`, `passed`, `pages[]` each with `timingPassed`, `endpointWatchPassed`, `passed`, stats, `endpointRules`, `results` (`RunResult[]`). |
+| `YYYY-MM-DD/report.pdf` | Human-readable PDF summary of the same data (when **`recordPdfReport`** is not **`false`**). |
+| `screenshots/` | Only if **`recordScreenshot`**: **`page-{i}-run-{k}.png`** (after ready). |
+| `traces/` | Only if **`recordTrace`**: Playwright trace zip per run. |
+
+Treat `outputDir` as **disposable** in CI. **`init`** appends **`outputDir`** to **`.gitignore`** when missing; otherwise add it manually.
 
 ---
 
@@ -256,7 +260,7 @@ process.exitCode = summary.passed ? 0 : 1;
 | Export                                                   | Role                                                                           |
 | -------------------------------------------------------- | ------------------------------------------------------------------------------ |
 | `loadConfig(path)`                                       | Read + validate JSON; resolve `storageState`, `localStorageState`, `outputDir`; return `PerfConfig`. |
-| `runSuite(config, options?)`                             | Run all pages; write `results.json`; return `SuiteSummary`.                    |
+| `runSuite(config, options?)`                             | Run all pages; write dated **`results.json`** and optional **`report.pdf`**; return `SuiteSummary`. |
 | `measureRun(options)`                                    | Single Playwright measurement; lower-level (see `MeasureRunOptions` in types). |
 | `mergePageOptions(defaults, page)`                       | Resolved selector/timeouts for a page.                                         |
 | `mergeEndpointWatch(defaults, page)`                     | Resolved **`ParsedEndpointWatchRule[]`** for a page.                           |
@@ -282,7 +286,7 @@ process.exitCode = summary.passed ? 0 : 1;
 2. Adjust `perf.config.json` (or use **`icib-perf-add-check`** wizard).
 3. Set **`baseURL`**, **`pages`**, stable **`readyVisible`** / **`readyHidden`**.
 4. Add npm script: `icib-perf-web-tester --config perf.config.json`.
-5. `.gitignore` **`outputDir`** (and secrets): traces, screenshots, `storageState` / `localStorageState` files if sensitive.
+5. **`init`** adds **`outputDir`** to **`.gitignore`** when not already present (and secrets): traces, screenshots, `storageState` / `localStorageState` files if sensitive.
 6. Wire CI: install browsers → run script → fail on exit **1**.
 
 ---

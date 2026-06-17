@@ -4,6 +4,8 @@ import type { PerfConfig } from "./types.js";
 import type { SuiteSummary } from "./types.js";
 import { colorFail, colorPass } from "./cli-colors.js";
 import { evaluateEndpointRules } from "./endpoint-eval.js";
+import { resolveRunOutputPaths } from "./output-paths.js";
+import { writeSuiteReportPdf } from "./report-pdf.js";
 import { chromium } from "playwright";
 import { mergeEndpointWatch, mergePageOptions } from "./config.js";
 import { measureRun } from "./runner.js";
@@ -19,6 +21,8 @@ function resolveGotoURL(baseURL: string, pageUrl: string): string {
 export type RunSuiteOptions = {
   /** Override output directory (e.g. from CLI). Must be absolute or cwd-relative. */
   outputDirOverride?: string;
+  /** Test hook: fixed date for daily output folder (default: now). */
+  runDate?: Date;
 };
 
 export async function runSuite(
@@ -33,15 +37,20 @@ export async function runSuite(
   const fullPageScreenshot = config.fullPageScreenshot === true;
   const traceSnapshots = config.traceSnapshots === true;
   const reportUntrackedRepeatApis = config.reportUntrackedRepeatApis !== false;
+  const recordPdfReport = config.recordPdfReport !== false;
   const budgetMetric = config.budgetMetric ?? "median";
   const outputDir = path.resolve(
     options.outputDirOverride ?? config.outputDir ?? ".webperf",
   );
+  const { runOutputDir, resultFile, reportFile } = resolveRunOutputPaths(
+    outputDir,
+    options.runDate,
+  );
   const traceDir = path.join(outputDir, "traces");
   const screenshotDir = path.join(outputDir, "screenshots");
-  const resultFile = path.join(outputDir, "results.json");
 
   fs.mkdirSync(outputDir, { recursive: true });
+  fs.mkdirSync(runOutputDir, { recursive: true });
   fs.mkdirSync(traceDir, { recursive: true });
   fs.mkdirSync(screenshotDir, { recursive: true });
 
@@ -140,11 +149,16 @@ export async function runSuite(
   const summary: SuiteSummary = {
     budgetMetric,
     outputDir,
+    runOutputDir,
     resultFile,
+    reportFile: recordPdfReport ? reportFile : "",
     passed: pageSummaries.every((p) => p.passed),
     pages: pageSummaries,
   };
 
   fs.writeFileSync(resultFile, JSON.stringify(summary, null, 2), "utf8");
+  if (recordPdfReport) {
+    await writeSuiteReportPdf(summary, reportFile);
+  }
   return summary;
 }

@@ -20,6 +20,7 @@ export {
   urlMatchesRule,
 } from "./endpoint-watch.js";
 export { percentile } from "./stats.js";
+export { writeSuiteReportPdf } from "./report-pdf.js";
 export { measureRun } from "./runner.js";
 export type { MeasureRunOptions } from "./runner.js";
 export { runSuite } from "./suite.js";

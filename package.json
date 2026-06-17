@@ -1,6 +1,6 @@
 {
   "name": "@icib.dev/perf-web-tester",
-  "version": "0.0.2",
+  "version": "0.1.0",
   "description": "Playwright-based web page performance testing with JSON config and CI-friendly budgets",
   "license": "ISC",
   "publishConfig": {
@@ -46,6 +46,7 @@
   },
   "devDependencies": {
     "@types/node": "^22.10.2",
+    "@types/pdfkit": "^0.17.6",
     "playwright": "^1.49.0",
     "tsup": "^8.3.5",
     "typescript": "^5.7.2",
@@ -57,5 +58,8 @@
     "web",
     "testing",
     "e2e"
-  ]
+  ],
+  "dependencies": {
+    "pdfkit": "^0.19.1"
+  }
 }

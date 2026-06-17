@@ -93,8 +93,12 @@ async function main() {
 
   console.log("\n=== Summary ===");
   console.log(`Output:    ${summary.outputDir}`);
+  console.log(`Run dir:   ${summary.runOutputDir}`);
   console.log(`Metric:    ${summary.budgetMetric}`);
   console.log(`Results:   ${summary.resultFile}`);
+  if (summary.reportFile) {
+    console.log(`Report:    ${summary.reportFile}`);
+  }
   for (const p of summary.pages) {
     const status = p.passed ? colorPass("PASS") : colorFail("FAIL");
     const timeOk = p.timingPassed ? colorPass("ok") : colorFail("FAIL");
